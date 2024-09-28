@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import "./Grid.css"; // For styling the grid cells
+import { useQuery } from "@tanstack/react-query";
 
 const GRID_SIZE = 10; // 10x10 grid for simplicity
 const ENABLE_MOVEMENT = true;
@@ -174,6 +175,10 @@ function randomLetterPlacement(currentGrid: CellType[][], snake: Coordinate[]) {
   };
 }
 
+function getSnakeLetters(snake: SnakeSegment[]) {
+  return snake.map((segment) => segment.letter).join("");
+}
+
 const Game = () => {
   const {
     grid: initialGrid,
@@ -190,6 +195,15 @@ const Game = () => {
   }); // Current direction of movement
 
   const [gameOver, setGameOver] = useState(false); // Track game over state
+
+  const { data: validWordSet } = useQuery({
+    queryFn: () =>
+      fetch("./2of12.txt")
+        .then((d) => d.text())
+        .then((txt) => new Set(txt.split(/\r?\n/))),
+    queryKey: ["words"],
+    staleTime: Infinity,
+  });
 
   // Function to place two new random letters after picking up one
   const placeNewLetter = useCallback(
@@ -276,6 +290,12 @@ const Game = () => {
 
         // Place two new random letters on the grid
         setGrid(placeNewLetter(updatedGrid));
+
+        const snakeLetters = getSnakeLetters(snake);
+
+        if (validWordSet?.has(snakeLetters)) {
+          console.log(`Found a valid word: ${snakeLetters}`);
+        }
       }
 
       const newSnake = [newHead];
@@ -307,7 +327,7 @@ const Game = () => {
       setGrid(updatedGrid); // Update the grid with new positions
       return newSnake; // Return the updated snake
     });
-  }, [direction, grid, placeNewLetter, checkCollision]);
+  }, [direction, grid, placeNewLetter, checkCollision, snake, validWordSet]);
 
   // Update snake position on grid and handle movement
   useEffect(() => {
@@ -346,7 +366,8 @@ const Game = () => {
   return (
     <div>
       <h1>Snake Word Game</h1>
-      <h2>{gameOver ? "Game Over!" : snake.map((s) => s.letter).join("")}</h2>
+      <h2>{gameOver ? "Game Over!" : getSnakeLetters(snake)}</h2>
+      {JSON.stringify(snake)}
       <Grid grid={grid} letters={letters} />
     </div>
   );
