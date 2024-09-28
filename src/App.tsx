@@ -10,16 +10,32 @@ type Coordinate = { x: number; y: number };
 
 interface GridProps {
   grid: CellType[][];
+  letters: {
+    x: number;
+    y: number;
+    letter: string;
+  }[];
 }
 
 // A functional component that renders the grid
-const Grid: React.FC<GridProps> = ({ grid }) => {
+const Grid: React.FC<GridProps> = ({ grid, letters }) => {
   return (
     <div className="grid">
       {grid.map((row, rowIndex) => (
         <div className="row" key={rowIndex}>
           {row.map((cell, colIndex) => (
-            <div className={`cell ${cell}`} key={colIndex}></div>
+            <div className={`cell ${cell}`} key={colIndex}>
+              {cell === "letter" && (
+                <span className="letter">
+                  {
+                    letters.find(
+                      (letter) =>
+                        letter.x === colIndex && letter.y === rowIndex,
+                    )?.letter
+                  }
+                </span>
+              )}
+            </div>
           ))}
         </div>
       ))}
@@ -59,17 +75,24 @@ function initializeGrid() {
   const initialSnake = initializeSnake();
   const initialGrid = generateEmptyGrid();
 
+  const lettersOnGrid: { x: number; y: number; letter: string }[] = [];
+
   initialSnake.forEach(({ x, y }) => {
     initialGrid[y][x] = "snake"; // Mark the snake's position on the grid
   });
 
-  for (let i = 0; i <= MAX_LETTERS_ON_GRID; i++) {
-    const { row, col } = randomLetterPlacement(initialGrid, initialSnake);
-    initialGrid[row][col] = "letter";
-    i++;
+  for (let i = 0; i < MAX_LETTERS_ON_GRID; i++) {
+    const { row, col, letter } = randomLetterPlacement(
+      initialGrid,
+      initialSnake,
+    );
+    if (row !== -1 && col !== -1) {
+      initialGrid[row][col] = "letter"; // Mark letter position
+      lettersOnGrid.push({ x: col, y: row, letter }); // Store letter information
+    }
   }
 
-  return { grid: initialGrid, snake: initialSnake };
+  return { grid: initialGrid, snake: initialSnake, letters: lettersOnGrid };
 }
 
 // Function to place a random letter on the grid
@@ -89,7 +112,7 @@ function randomLetterPlacement(currentGrid: CellType[][], snake: Coordinate[]) {
     });
   });
 
-  if (emptyCells.length === 0) return { row: -1, col: -1 };
+  if (emptyCells.length === 0) return { row: -1, col: -1, letter: "A" };
 
   const randomIndex = Math.floor(Math.random() * emptyCells.length);
   const cell = emptyCells[randomIndex];
@@ -103,8 +126,15 @@ function randomLetterPlacement(currentGrid: CellType[][], snake: Coordinate[]) {
 }
 
 const Game = () => {
-  const [grid, setGrid] = useState<CellType[][]>(initializeGrid().grid);
-  const [snake, setSnake] = useState<Coordinate[]>(initializeGrid().snake); // Array of snake segments
+  const {
+    grid: initialGrid,
+    snake: initialSnake,
+    letters: initialLetters,
+  } = initializeGrid();
+
+  const [grid, setGrid] = useState(initialGrid);
+  const [snake, setSnake] = useState(initialSnake);
+  const [letters, setLetters] = useState(initialLetters);
   const [direction, setDirection] = useState<Coordinate>({
     x: 0,
     y: 0,
@@ -193,7 +223,7 @@ const Game = () => {
   return (
     <div>
       <h1>Snake Word Game</h1>
-      <Grid grid={grid} />
+      <Grid grid={grid} letters={letters} />
     </div>
   );
 };

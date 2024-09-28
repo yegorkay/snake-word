@@ -18,6 +18,8 @@
   width: 30px;
   height: 30px;
   border: 1px solid #ccc;
+  text-align: center;
+  font-weight: 600;
 }
 
 .cell.empty {
