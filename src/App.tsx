@@ -18,7 +18,7 @@ const directions = {
   s: { x: 0, y: 1 },
   a: { x: -1, y: 0 },
   d: { x: 1, y: 0 },
-};
+} as { [key: string]: Coordinate };
 
 type SnakeSegment = {
   x: number;
@@ -27,19 +27,14 @@ type SnakeSegment = {
 };
 
 type CellType = {
-  type: "empty" | "snake" | "letter";
+  type: "empty" | "snake" | "letter" | "collision";
   letter?: string;
 };
 
 type Coordinate = { x: number; y: number };
 
-interface GridProps {
-  grid: CellType[][];
-  letters: Coordinate[];
-}
-
 // A functional component that renders the grid
-const Grid: React.FC<GridProps> = ({ grid }) => {
+const Grid = ({ grid }: { grid: CellType[][]; letters: Coordinate[] }) => {
   return (
     <div className="grid">
       {grid.map((row, rowIndex) => (
@@ -147,22 +142,39 @@ const Game = () => {
     y: 0,
   }); // Current direction of movement
 
+  const [gameOver, setGameOver] = useState(false); // Track game over state
+
   // Function to place two new random letters after picking up one
-  const placeNewLetter = (updatedGrid: CellType[][]) => {
-    const newLetters: Coordinate[] = [];
+  const placeNewLetter = useCallback(
+    (updatedGrid: CellType[][]) => {
+      const newLetters: Coordinate[] = [];
 
-    for (let i = 0; i < MAX_LETTERS_ON_GRID; i++) {
-      const { row, col, letter } = randomLetterPlacement(updatedGrid, snake);
-      if (row !== -1 && col !== -1) {
-        updatedGrid[row][col].type = "letter";
-        updatedGrid[row][col].letter = letter;
-        newLetters.push({ x: col, y: row });
+      for (let i = 0; i < MAX_LETTERS_ON_GRID; i++) {
+        const { row, col, letter } = randomLetterPlacement(updatedGrid, snake);
+        if (row !== -1 && col !== -1) {
+          updatedGrid[row][col].type = "letter";
+          updatedGrid[row][col].letter = letter;
+          newLetters.push({ x: col, y: row });
+        }
       }
-    }
 
-    setLetters(newLetters);
-    return updatedGrid;
-  };
+      setLetters(newLetters);
+      return updatedGrid;
+    },
+    [snake],
+  );
+
+  const checkCollision = useCallback(
+    (newHead: SnakeSegment) => {
+      return (
+        snake.length > 1 &&
+        snake.some(
+          (segment) => segment.x === newHead.x && segment.y === newHead.y,
+        )
+      );
+    },
+    [snake],
+  );
 
   // Function to update the snake's position based on its current direction
   const moveSnake = useCallback(() => {
@@ -173,6 +185,22 @@ const Game = () => {
         y: (head.y + direction.y + GRID_SIZE) % GRID_SIZE,
         letter: head.letter,
       } as SnakeSegment;
+
+      // Check if snake collides with itself
+      if (checkCollision(newHead)) {
+        const updatedGrid = grid.map((row) =>
+          row.map((cell) => {
+            if (cell.type === "snake") {
+              return { ...cell, type: "collision" } satisfies CellType; // Change snake cells to "collision"
+            }
+            return cell;
+          }),
+        );
+
+        setGrid(updatedGrid); // Update the grid to show the collision
+        setGameOver(true); // End the game
+        return prevSnake; // Keep snake as is, no more movement
+      }
 
       // Create a new grid to avoid mutating the original
       const updatedGrid = grid.map((row) => row.map((cell) => ({ ...cell })));
@@ -232,7 +260,7 @@ const Game = () => {
       setGrid(updatedGrid); // Update the grid with new positions
       return newSnake; // Return the updated snake
     });
-  }, [direction, grid, placeNewLetter]);
+  }, [direction, grid, placeNewLetter, checkCollision]);
 
   // Update snake position on grid and handle movement
   useEffect(() => {
@@ -271,7 +299,7 @@ const Game = () => {
   return (
     <div>
       <h1>Snake Word Game</h1>
-      <h2>{JSON.stringify(snake.map((s) => s.letter).join(""))}</h2>
+      <h2>{gameOver ? "Game Over!" : snake.map((s) => s.letter).join("")}</h2>
       <Grid grid={grid} letters={letters} />
     </div>
   );
