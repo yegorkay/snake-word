@@ -28,6 +28,7 @@
 
 .cell.snake {
   background-color: green;
+  color: white;
 }
 
 .cell.letter {

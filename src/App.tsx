@@ -1,42 +1,34 @@
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import "./Grid.css"; // For styling the grid cells
 
 const GRID_SIZE = 10; // 10x10 grid for simplicity
 const ENABLE_MOVEMENT = true;
 
-type CellType = "empty" | "snake" | "letter";
+type CellType = {
+  type: "empty" | "snake" | "letter";
+  letter?: string;
+};
 
 type Coordinate = { x: number; y: number };
 
 interface GridProps {
   grid: CellType[][];
-  letters: {
-    x: number;
-    y: number;
-    letter: string;
-  }[];
+  letters: Coordinate[];
 }
 
 // A functional component that renders the grid
-const Grid: React.FC<GridProps> = ({ grid, letters }) => {
+const Grid: React.FC<GridProps> = ({ grid }) => {
   return (
     <div className="grid">
       {grid.map((row, rowIndex) => (
         <div className="row" key={rowIndex}>
-          {row.map((cell, colIndex) => (
-            <div className={`cell ${cell}`} key={colIndex}>
-              {cell === "letter" && (
-                <span className="letter">
-                  {
-                    letters.find(
-                      (letter) =>
-                        letter.x === colIndex && letter.y === rowIndex,
-                    )?.letter
-                  }
-                </span>
-              )}
-            </div>
-          ))}
+          {row.map((cell, colIndex) => {
+            return (
+              <div className={`cell ${cell.type}`} key={colIndex}>
+                {cell?.letter && <span className="letter">{cell.letter}</span>}
+              </div>
+            );
+          })}
         </div>
       ))}
     </div>
@@ -62,7 +54,10 @@ const directions = {
 // Function to generate an empty grid
 function generateEmptyGrid(): CellType[][] {
   return Array.from({ length: GRID_SIZE }, () =>
-    Array.from({ length: GRID_SIZE }, () => "empty"),
+    Array.from({ length: GRID_SIZE }, () => ({
+      type: "empty",
+      letter: undefined,
+    })),
   );
 }
 
@@ -75,10 +70,10 @@ function initializeGrid() {
   const initialSnake = initializeSnake();
   const initialGrid = generateEmptyGrid();
 
-  const lettersOnGrid: { x: number; y: number; letter: string }[] = [];
+  const lettersOnGrid: Coordinate[] = [];
 
   initialSnake.forEach(({ x, y }) => {
-    initialGrid[y][x] = "snake"; // Mark the snake's position on the grid
+    initialGrid[y][x].type = "snake"; // Mark the snake's position on the grid
   });
 
   for (let i = 0; i < MAX_LETTERS_ON_GRID; i++) {
@@ -87,12 +82,17 @@ function initializeGrid() {
       initialSnake,
     );
     if (row !== -1 && col !== -1) {
-      initialGrid[row][col] = "letter"; // Mark letter position
-      lettersOnGrid.push({ x: col, y: row, letter }); // Store letter information
+      initialGrid[row][col].type = "letter"; // Mark letter position
+      initialGrid[row][col].letter = letter;
+      lettersOnGrid.push({ x: col, y: row }); // Store letter information
     }
   }
 
-  return { grid: initialGrid, snake: initialSnake, letters: lettersOnGrid };
+  return {
+    grid: initialGrid,
+    snake: initialSnake,
+    letters: lettersOnGrid,
+  };
 }
 
 // Function to place a random letter on the grid
@@ -102,7 +102,7 @@ function randomLetterPlacement(currentGrid: CellType[][], snake: Coordinate[]) {
   currentGrid.forEach((row, rowIndex) => {
     row.forEach((cell, colIndex) => {
       if (
-        cell === "empty" &&
+        cell.type === "empty" &&
         !snake.some(
           (segment) => segment.x === colIndex && segment.y === rowIndex,
         )
@@ -149,38 +149,52 @@ const Game = () => {
         y: (head.y + direction.y + GRID_SIZE) % GRID_SIZE, // Wrap around grid vertically
       };
 
-      // Start with a copy of the current grid
-      const updatedGrid = grid.map((row) => [...row]);
+      // Create a new grid to avoid mutating the original
+      const updatedGrid = grid.map((row) => row.map((cell) => ({ ...cell }))); // Create a new grid
 
       // Check if the new head position is a letter
-      if (updatedGrid[newHead.y][newHead.x] === "letter") {
-        // If it is a letter, grow the snake
-        const newSnake = [newHead, ...prevSnake]; // Grow snake by adding new head
+      if (updatedGrid[newHead.y][newHead.x].type === "letter") {
+        // Grow the snake
+        const newSnake = [newHead, ...prevSnake]; // Add new head
+
         // Clear the letter from the grid
-        updatedGrid[newHead.y][newHead.x] = "empty";
-        // Update the grid with the new snake positions
+        updatedGrid[newHead.y][newHead.x] = {
+          type: "empty",
+          letter: undefined,
+        } satisfies CellType;
+
+        // Update snake positions on the grid
         newSnake.forEach(({ x, y }) => {
-          updatedGrid[y][x] = "snake"; // Mark the snake's position on the grid
+          updatedGrid[y][x] = {
+            type: "snake",
+            letter: updatedGrid[y][x].letter,
+          } satisfies CellType; // Ensure snake is marked
         });
+
         setGrid(updatedGrid); // Update the grid
-        return newSnake; // Return the new snake with the new head added
+        return newSnake; // Return the new snake
       }
 
-      // Otherwise, move the snake normally
-      const newSnake = [newHead, ...prevSnake.slice(0, prevSnake.length - 1)]; // Move snake
-
-      // Clear the tail position in the grid (the last segment)
+      // Move the snake normally
+      const newSnake = [newHead, ...prevSnake.slice(0, prevSnake.length - 1)];
       const tail = prevSnake[prevSnake.length - 1];
-      updatedGrid[tail.y][tail.x] = "empty"; // Clear the tail position
 
-      // Mark the new positions of the snake on the grid
+      // Clear the tail position in the grid
+      updatedGrid[tail.y][tail.x] = {
+        type: "empty",
+        letter: undefined,
+      } satisfies CellType; // Clear the tail
+
+      // Mark the new snake positions on the grid
       newSnake.forEach(({ x, y }) => {
-        updatedGrid[y][x] = "snake"; // Mark the snake's position on the grid
+        updatedGrid[y][x] = {
+          type: "snake",
+          letter: updatedGrid[y][x].letter,
+        } satisfies CellType; // Mark the snake
       });
 
-      setGrid(updatedGrid); // Update the grid with the new snake positions
-
-      return newSnake;
+      setGrid(updatedGrid); // Update the grid with new positions
+      return newSnake; // Return the moved snake
     });
   }, [direction, grid]);
 
