@@ -1,13 +1,10 @@
-import React, { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import "./Grid.css"; // For styling the grid cells
 
 const GRID_SIZE = 10; // 10x10 grid for simplicity
 const ENABLE_MOVEMENT = true;
-const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split(""); // Array of letters
-const MAX_LETTERS_ON_GRID = 2; // Configurable number of letters to place on the grid
+const MAX_LETTERS_ON_GRID = 3; // Configurable number of letters to place on the grid
 const SNAKE_SPEED_IN_MS = 500;
-const INIT_SNAKE_HEAD_LETTER =
-  letters[Math.floor(Math.random() * letters.length)];
 // Directions map for key presses
 const directions = {
   arrowup: { x: 0, y: -1 },
@@ -19,6 +16,36 @@ const directions = {
   a: { x: -1, y: 0 },
   d: { x: 1, y: 0 },
 } as { [key: string]: Coordinate };
+
+// Some random GPT-assisted weights.
+const letterWeights = {
+  A: 8.17,
+  B: 1.49,
+  C: 2.78,
+  D: 4.25,
+  E: 12.7,
+  F: 2.23,
+  G: 2.02,
+  H: 6.09,
+  I: 7.0,
+  J: 0.15,
+  K: 0.77,
+  L: 4.03,
+  M: 2.41,
+  N: 6.75,
+  O: 7.51,
+  P: 1.93,
+  Q: 0.1,
+  R: 5.99,
+  S: 6.33,
+  T: 9.06,
+  U: 2.76,
+  V: 0.98,
+  W: 2.36,
+  X: 0.15,
+  Y: 1.97,
+  Z: 0.07,
+};
 
 type SnakeSegment = {
   x: number;
@@ -61,6 +88,26 @@ function generateEmptyGrid(): CellType[][] {
     })),
   );
 }
+
+function getRandomWeightedLetter() {
+  const totalWeight = Object.values(letterWeights).reduce(
+    (sum, weight) => sum + weight,
+    0,
+  );
+  const random = Math.random() * totalWeight;
+
+  let cumulativeWeight = 0;
+  for (const [letter, weight] of Object.entries(letterWeights)) {
+    cumulativeWeight += weight;
+    if (random < cumulativeWeight) {
+      return letter;
+    }
+  }
+
+  return "A";
+}
+
+const INIT_SNAKE_HEAD_LETTER = getRandomWeightedLetter();
 
 function initializeSnake(): SnakeSegment {
   const mid = Math.ceil(GRID_SIZE / 2) - 1;
@@ -118,7 +165,7 @@ function randomLetterPlacement(currentGrid: CellType[][], snake: Coordinate[]) {
 
   const randomIndex = Math.floor(Math.random() * emptyCells.length);
   const cell = emptyCells[randomIndex];
-  const randomLetter = letters[Math.floor(Math.random() * letters.length)];
+  const randomLetter = getRandomWeightedLetter();
 
   return {
     row: cell.row,
@@ -305,3 +352,17 @@ const Game = () => {
   );
 };
 export default Game;
+
+// Maybe a cool idea?
+
+// As you go on, another twist to the snake is that you can collide with a segment of yourself
+// to break off chunks of letters that are not legal
+
+// So:
+
+// PIE-KSOOD
+
+// And if the snake head touches any part of the snake body that does not have legal words,
+// those break off in place on the grid and become a block to avoid on the grid
+
+// PIE x x x x KSOOO
