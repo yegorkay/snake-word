@@ -80,6 +80,35 @@ const Grid = ({ grid }: { grid: CellType[][]; letters: Coordinate[] }) => {
   );
 };
 
+function findLongestValidWordAtEnd(
+  snakeSegments: SnakeSegment[],
+  validWordSet: Set<string> | undefined,
+) {
+  // Get letters in the order they appear in the snake
+  const letters = snakeSegments
+    .map((segment) => segment.letter)
+    .join("")
+    .toLowerCase();
+
+  let longestWord = ""; // Initialize a variable to hold the longest word
+
+  // Start checking from the end of the snake
+  for (let end = letters.length; end > 0; end--) {
+    for (let start = 0; start < end; start++) {
+      const substring = letters.slice(start, end);
+      // Check if the substring is in the validWordSet
+      if (
+        validWordSet?.has(substring) &&
+        substring.length > longestWord.length
+      ) {
+        longestWord = substring; // Update longestWord if a longer valid word is found
+      }
+    }
+  }
+
+  return longestWord; // Return the longest valid word found
+}
+
 // Function to generate an empty grid
 function generateEmptyGrid(): CellType[][] {
   return Array.from({ length: GRID_SIZE }, () =>
@@ -195,6 +224,7 @@ const Game = () => {
   }); // Current direction of movement
 
   const [gameOver, setGameOver] = useState(false); // Track game over state
+  const [longestWord, setLongestWord] = useState("");
 
   const { data: validWordSet } = useQuery({
     queryFn: () =>
@@ -291,10 +321,11 @@ const Game = () => {
         // Place two new random letters on the grid
         setGrid(placeNewLetter(updatedGrid));
 
-        const snakeLetters = getSnakeLetters(snake);
+        const longestValidWord = findLongestValidWordAtEnd(snake, validWordSet);
 
-        if (validWordSet?.has(snakeLetters)) {
-          console.log(`Found a valid word: ${snakeLetters}`);
+        if (longestValidWord.length > 1) {
+          console.log(`Found a valid word: ${longestValidWord}`);
+          setLongestWord(longestValidWord);
         }
       }
 
@@ -366,7 +397,8 @@ const Game = () => {
   return (
     <div>
       <h1>Snake Word Game</h1>
-      <h2>{gameOver ? "Game Over!" : getSnakeLetters(snake)}</h2>
+      <h2>Current snake: {gameOver ? "Game Over!" : getSnakeLetters(snake)}</h2>
+      <h3>Longest word: {longestWord}</h3>
       {JSON.stringify(snake)}
       <Grid grid={grid} letters={letters} />
     </div>
