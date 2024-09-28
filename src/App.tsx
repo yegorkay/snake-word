@@ -4,6 +4,12 @@ import "./Grid.css"; // For styling the grid cells
 const GRID_SIZE = 10; // 10x10 grid for simplicity
 const ENABLE_MOVEMENT = true;
 
+type SnakeSegment = {
+  x: number;
+  y: number;
+  letter?: string;
+};
+
 type CellType = {
   type: "empty" | "snake" | "letter";
   letter?: string;
@@ -38,6 +44,8 @@ const Grid: React.FC<GridProps> = ({ grid }) => {
 const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split(""); // Array of letters
 const MAX_LETTERS_ON_GRID = 2; // Configurable number of letters to place on the grid
 const SNAKE_SPEED_IN_MS = 250;
+const INIT_SNAKE_HEAD_LETTER =
+  letters[Math.floor(Math.random() * letters.length)];
 
 // Directions map for key presses
 const directions = {
@@ -61,26 +69,26 @@ function generateEmptyGrid(): CellType[][] {
   );
 }
 
-function initializeSnake(): Coordinate[] {
+function initializeSnake(): SnakeSegment {
   const mid = Math.ceil(GRID_SIZE / 2) - 1;
-  return [{ x: mid, y: mid }];
+  return { x: mid, y: mid, letter: INIT_SNAKE_HEAD_LETTER };
 }
 
 function initializeGrid() {
-  const initialSnake = initializeSnake();
+  const snakeHead = initializeSnake();
   const initialGrid = generateEmptyGrid();
 
   const lettersOnGrid: Coordinate[] = [];
 
-  initialSnake.forEach(({ x, y }) => {
-    initialGrid[y][x].type = "snake"; // Mark the snake's position on the grid
-  });
+  initialGrid[snakeHead.y][snakeHead.x] = {
+    type: "snake",
+    letter: INIT_SNAKE_HEAD_LETTER, // Initialize snake head with letter "A" for now
+  };
 
   for (let i = 0; i < MAX_LETTERS_ON_GRID; i++) {
-    const { row, col, letter } = randomLetterPlacement(
-      initialGrid,
-      initialSnake,
-    );
+    const { row, col, letter } = randomLetterPlacement(initialGrid, [
+      snakeHead,
+    ]);
     if (row !== -1 && col !== -1) {
       initialGrid[row][col].type = "letter"; // Mark letter position
       initialGrid[row][col].letter = letter;
@@ -90,7 +98,7 @@ function initializeGrid() {
 
   return {
     grid: initialGrid,
-    snake: initialSnake,
+    snake: [snakeHead],
     letters: lettersOnGrid,
   };
 }
@@ -143,58 +151,67 @@ const Game = () => {
   // Function to update the snake's position based on its current direction
   const moveSnake = useCallback(() => {
     setSnake((prevSnake) => {
-      const head = prevSnake[0];
+      const head = prevSnake[0]; // Get current head
       const newHead = {
         x: (head.x + direction.x + GRID_SIZE) % GRID_SIZE, // Wrap around grid horizontally
         y: (head.y + direction.y + GRID_SIZE) % GRID_SIZE, // Wrap around grid vertically
-      };
+        letter: head.letter ?? INIT_SNAKE_HEAD_LETTER, // Retain the head's current letter
+      } as SnakeSegment;
 
       // Create a new grid to avoid mutating the original
-      const updatedGrid = grid.map((row) => row.map((cell) => ({ ...cell }))); // Create a new grid
+      const updatedGrid = grid.map((row) => row.map((cell) => ({ ...cell })));
 
-      // Check if the new head position is a letter
+      let growSnake = false; // Flag to check if we need to grow the snake
+
+      // If the new head position is a letter, pick it up
       if (updatedGrid[newHead.y][newHead.x].type === "letter") {
-        // Grow the snake
-        const newSnake = [newHead, ...prevSnake]; // Add new head
+        const pickedLetter = updatedGrid[newHead.y][newHead.x].letter as string;
+
+        // Set the new head's letter to the picked letter
+        newHead.letter = pickedLetter;
 
         // Clear the letter from the grid
         updatedGrid[newHead.y][newHead.x] = {
           type: "empty",
           letter: undefined,
-        } satisfies CellType;
+        };
 
-        // Update snake positions on the grid
-        newSnake.forEach(({ x, y }) => {
-          updatedGrid[y][x] = {
-            type: "snake",
-            letter: updatedGrid[y][x].letter,
-          } satisfies CellType; // Ensure snake is marked
-        });
-
-        setGrid(updatedGrid); // Update the grid
-        return newSnake; // Return the new snake
+        // Mark that the snake needs to grow
+        growSnake = true;
       }
 
-      // Move the snake normally
-      const newSnake = [newHead, ...prevSnake.slice(0, prevSnake.length - 1)];
-      const tail = prevSnake[prevSnake.length - 1];
+      // Create a new snake array
+      const newSnake = [newHead];
+
+      // If the snake should grow, we add the previous segments plus a new one
+      if (growSnake) {
+        // Add the rest of the snake's body and retain the letters
+        newSnake.push(
+          ...prevSnake.map((segment) => ({
+            ...segment,
+          })),
+        );
+      } else {
+        // Shift snake body by one (move the head forward and retain letters)
+        for (let i = 0; i < prevSnake.length - 1; i++) {
+          newSnake.push({
+            ...prevSnake[i],
+            letter: prevSnake[i + 1].letter, // Shift the letter down the snake body
+          });
+        }
+      }
 
       // Clear the tail position in the grid
-      updatedGrid[tail.y][tail.x] = {
-        type: "empty",
-        letter: undefined,
-      } satisfies CellType; // Clear the tail
+      const tail = prevSnake[prevSnake.length - 1];
+      updatedGrid[tail.y][tail.x] = { type: "empty", letter: undefined };
 
-      // Mark the new snake positions on the grid
-      newSnake.forEach(({ x, y }) => {
-        updatedGrid[y][x] = {
-          type: "snake",
-          letter: updatedGrid[y][x].letter,
-        } satisfies CellType; // Mark the snake
+      // Mark the new snake positions on the grid, preserving the letters
+      newSnake.forEach(({ x, y, letter }) => {
+        updatedGrid[y][x] = { type: "snake", letter: letter }; // Keep letters in their positions
       });
 
       setGrid(updatedGrid); // Update the grid with new positions
-      return newSnake; // Return the moved snake
+      return newSnake; // Return the updated snake
     });
   }, [direction, grid]);
 
@@ -237,6 +254,7 @@ const Game = () => {
   return (
     <div>
       <h1>Snake Word Game</h1>
+      <h2>{JSON.stringify(snake.map((s) => s.letter).join(""))}</h2>
       <Grid grid={grid} letters={letters} />
     </div>
   );
