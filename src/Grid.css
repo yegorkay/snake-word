@@ -1,0 +1,33 @@
+.grid {
+  display: flex;
+  flex-direction: column;
+}
+
+.container {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+
+.row {
+  display: flex;
+}
+
+.cell {
+  width: 30px;
+  height: 30px;
+  border: 1px solid #ccc;
+}
+
+.cell.empty {
+  background-color: #fff;
+}
+
+.cell.snake {
+  background-color: green;
+}
+
+.cell.letter {
+  background-color: yellow;
+}
