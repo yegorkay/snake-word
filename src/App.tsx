@@ -16,7 +16,16 @@ const directions = {
   s: { x: 0, y: 1 },
   a: { x: -1, y: 0 },
   d: { x: 1, y: 0 },
-} as { [key: string]: Coordinate };
+} as const satisfies { [key: string]: Coordinate };
+
+function getCardinalDirection(dir: keyof typeof directions | undefined) {
+  if (dir === "arrowup" || dir === "w") return "up";
+  if (dir === "arrowdown" || dir === "s") return "down";
+  if (dir === "arrowleft" || dir === "a") return "left";
+  if (dir === "arrowright" || dir === "d") return "right";
+
+  return undefined;
+}
 
 // Some random GPT-assisted weights.
 const letterWeights = {
@@ -62,14 +71,37 @@ type CellType = {
 type Coordinate = { x: number; y: number };
 
 // A functional component that renders the grid
-const Grid = ({ grid }: { grid: CellType[][]; letters: Coordinate[] }) => {
+const Grid = ({
+  grid,
+  direction,
+  snakeHead,
+}: {
+  grid: CellType[][];
+  direction: {
+    coordinate: Coordinate;
+    direction: keyof typeof directions | undefined;
+  };
+  snakeHead: SnakeSegment;
+}) => {
+  const cardinalDirection = getCardinalDirection(direction.direction);
+
   return (
     <div className="grid">
       {grid.map((row, rowIndex) => (
         <div className="row" key={rowIndex}>
           {row.map((cell, colIndex) => {
+            const isSnakeHead =
+              rowIndex === snakeHead.y && colIndex === snakeHead.x;
+            const snakeClass = isSnakeHead
+              ? `snake pointed-${cardinalDirection}` // Apply direction-specific class
+              : "snake";
             return (
-              <div className={`cell ${cell.type}`} key={colIndex}>
+              <div
+                className={`cell ${cell.type} ${
+                  cell.type === "snake" && isSnakeHead ? snakeClass : ""
+                }`}
+                key={colIndex}
+              >
                 {cell?.letter && <span className="letter">{cell.letter}</span>}
               </div>
             );
@@ -218,9 +250,12 @@ const Game = () => {
   const [grid, setGrid] = useState(initialGrid);
   const [snake, setSnake] = useState(initialSnake);
   const [letters, setLetters] = useState(initialLetters);
-  const [direction, setDirection] = useState<Coordinate>({
-    x: 0,
-    y: 0,
+  const [direction, setDirection] = useState<{
+    coordinate: Coordinate;
+    direction: keyof typeof directions | undefined;
+  }>({
+    coordinate: { x: 0, y: 0 },
+    direction: undefined,
   }); // Current direction of movement
 
   const [gameOver, setGameOver] = useState(false); // Track game over state
@@ -272,8 +307,8 @@ const Game = () => {
     setSnake((prevSnake) => {
       const head = prevSnake[0]; // Get current head
       const newHead = {
-        x: (head.x + direction.x + GRID_SIZE) % GRID_SIZE,
-        y: (head.y + direction.y + GRID_SIZE) % GRID_SIZE,
+        x: (head.x + direction.coordinate.x + GRID_SIZE) % GRID_SIZE,
+        y: (head.y + direction.coordinate.y + GRID_SIZE) % GRID_SIZE,
         letter: head.letter,
       } as SnakeSegment;
 
@@ -363,16 +398,16 @@ const Game = () => {
   // Update snake position on grid and handle movement
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      const key = event.key.toLowerCase();
-      const newDirection = directions[key as keyof typeof directions];
+      const key = event.key.toLowerCase() as keyof typeof directions;
+      const newDirection = directions[key];
 
       if (newDirection) {
         // Prevent reversing direction
         if (
-          (direction.x === 0 && newDirection.x !== 0) ||
-          (direction.y === 0 && newDirection.y !== 0)
+          (direction.coordinate.x === 0 && newDirection.x !== 0) ||
+          (direction.coordinate.y === 0 && newDirection.y !== 0)
         ) {
-          setDirection(newDirection);
+          setDirection({ coordinate: newDirection, direction: key });
         }
       }
     };
@@ -399,8 +434,9 @@ const Game = () => {
       <h1>Snake Word Game</h1>
       <h2>Current snake: {gameOver ? "Game Over!" : getSnakeLetters(snake)}</h2>
       <h3>Longest word: {longestWord}</h3>
+      <h3>Letters on board: {JSON.stringify(letters)}</h3>
       {JSON.stringify(snake)}
-      <Grid grid={grid} letters={letters} />
+      <Grid grid={grid} direction={direction} snakeHead={snake[0]} />
     </div>
   );
 };

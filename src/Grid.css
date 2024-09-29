@@ -39,3 +39,51 @@
 .cell.letter {
   background-color: yellow;
 }
+
+.pointed-down {
+  text-align: center;
+  position: relative;
+  clip-path: polygon(
+    0 0,
+    100% 0,
+    100% 60%,
+    50% 100%,
+    0 60%
+  ); /* Creates a pointed bottom */
+}
+
+.pointed-left {
+  text-align: center;
+  position: relative;
+  clip-path: polygon(
+    40% 0,
+    100% 0,
+    100% 100%,
+    40% 100%,
+    0 50%
+  ); /* Creates a pointed left side */
+}
+
+.pointed-right {
+  text-align: center;
+  position: relative;
+  clip-path: polygon(
+    0 0,
+    60% 0,
+    100% 50%,
+    60% 100%,
+    0 100%
+  ); /* Creates a pointed right side */
+}
+
+.pointed-up {
+  text-align: center;
+  position: relative;
+  clip-path: polygon(
+    0 40%,
+    50% 0,
+    100% 40%,
+    100% 100%,
+    0 100%
+  ); /* Creates a pointed top */
+}
