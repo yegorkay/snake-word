@@ -57,18 +57,13 @@ const letterWeights = {
   Z: 0.07,
 };
 
-type SnakeSegment = {
-  x: number;
-  y: number;
-  letter?: string;
-};
+type Coordinate = { x: number; y: number };
 
 type CellType = {
   type: "empty" | "snake" | "letter" | "collision";
+  coordinates: Coordinate;
   letter?: string;
 };
-
-type Coordinate = { x: number; y: number };
 
 // A functional component that renders the grid
 const Grid = ({
@@ -78,10 +73,10 @@ const Grid = ({
 }: {
   grid: CellType[][];
   direction: {
-    coordinate: Coordinate;
+    coordinates: Coordinate;
     direction: keyof typeof directions | undefined;
   };
-  snakeHead: SnakeSegment;
+  snakeHead: CellType;
 }) => {
   const cardinalDirection = getCardinalDirection(direction.direction);
 
@@ -91,7 +86,8 @@ const Grid = ({
         const rowIndex = Math.floor(index / GRID_SIZE); // Calculate the row index
         const colIndex = index % GRID_SIZE; // Calculate the column index
         const isSnakeHead =
-          rowIndex === snakeHead.y && colIndex === snakeHead.x;
+          rowIndex === snakeHead.coordinates.y &&
+          colIndex === snakeHead.coordinates.x;
         const snakeClass = isSnakeHead
           ? `snake pointed-${cardinalDirection}` // Apply direction-specific class
           : "snake";
@@ -112,7 +108,7 @@ const Grid = ({
 };
 
 function findLongestValidWordAtEnd(
-  snakeSegments: SnakeSegment[],
+  snakeSegments: CellType[],
   validWordSet: Set<string> | undefined,
 ) {
   // Get letters in the order they appear in the snake
@@ -143,10 +139,15 @@ function findLongestValidWordAtEnd(
 // Function to generate an empty grid
 function generateEmptyGrid(): CellType[][] {
   return Array.from({ length: GRID_SIZE }, () =>
-    Array.from({ length: GRID_SIZE }, () => ({
-      type: "empty",
-      letter: undefined,
-    })),
+    Array.from(
+      { length: GRID_SIZE },
+      () =>
+        ({
+          type: "empty",
+          letter: undefined,
+          coordinates: { x: 0, y: 0 },
+        }) satisfies CellType,
+    ),
   );
 }
 
@@ -170,20 +171,25 @@ function getRandomWeightedLetter() {
 
 const INIT_SNAKE_HEAD_LETTER = getRandomWeightedLetter();
 
-function initializeSnake(): SnakeSegment {
+function initializeSnake(): CellType {
   const mid = Math.ceil(GRID_SIZE / 2) - 1;
-  return { x: mid, y: mid, letter: INIT_SNAKE_HEAD_LETTER };
+  return {
+    coordinates: { x: mid, y: mid },
+    letter: INIT_SNAKE_HEAD_LETTER,
+    type: "snake",
+  };
 }
 
 function initializeGrid() {
   const snakeHead = initializeSnake();
   const initialGrid = generateEmptyGrid();
 
-  const lettersOnGrid: Coordinate[] = [];
+  const lettersOnGrid: CellType[] = [];
 
-  initialGrid[snakeHead.y][snakeHead.x] = {
+  initialGrid[snakeHead.coordinates.y][snakeHead.coordinates.x] = {
     type: "snake",
     letter: INIT_SNAKE_HEAD_LETTER,
+    coordinates: { x: snakeHead.coordinates.x, y: snakeHead.coordinates.y },
   };
 
   // Place random letters initially
@@ -194,7 +200,11 @@ function initializeGrid() {
     if (row !== -1 && col !== -1) {
       initialGrid[row][col].type = "letter";
       initialGrid[row][col].letter = letter;
-      lettersOnGrid.push({ x: col, y: row });
+      lettersOnGrid.push({
+        coordinates: { x: col, y: row },
+        letter,
+        type: "letter",
+      });
     }
   }
 
@@ -206,7 +216,7 @@ function initializeGrid() {
 }
 
 // Function to place a random letter on the grid
-function randomLetterPlacement(currentGrid: CellType[][], snake: Coordinate[]) {
+function randomLetterPlacement(currentGrid: CellType[][], snake: CellType[]) {
   const emptyCells: { row: number; col: number }[] = [];
 
   currentGrid.forEach((row, rowIndex) => {
@@ -214,7 +224,9 @@ function randomLetterPlacement(currentGrid: CellType[][], snake: Coordinate[]) {
       if (
         cell.type === "empty" &&
         !snake.some(
-          (segment) => segment.x === colIndex && segment.y === rowIndex,
+          (segment) =>
+            segment.coordinates.x === colIndex &&
+            segment.coordinates.y === rowIndex,
         )
       ) {
         emptyCells.push({ row: rowIndex, col: colIndex });
@@ -235,7 +247,7 @@ function randomLetterPlacement(currentGrid: CellType[][], snake: Coordinate[]) {
   };
 }
 
-function getSnakeLetters(snake: SnakeSegment[]) {
+function getSnakeLetters(snake: CellType[]) {
   return snake.map((segment) => segment.letter).join("");
 }
 
@@ -250,10 +262,10 @@ const Game = () => {
   const [snake, setSnake] = useState(initialSnake);
   const [letters, setLetters] = useState(initialLetters);
   const [direction, setDirection] = useState<{
-    coordinate: Coordinate;
+    coordinates: Coordinate;
     direction: keyof typeof directions | undefined;
   }>({
-    coordinate: { x: 0, y: 0 },
+    coordinates: { x: 0, y: 0 },
     direction: undefined,
   }); // Current direction of movement
 
@@ -272,14 +284,18 @@ const Game = () => {
   // Function to place two new random letters after picking up one
   const placeNewLetter = useCallback(
     (updatedGrid: CellType[][]) => {
-      const newLetters: Coordinate[] = [];
+      const newLetters: CellType[] = [];
 
       for (let i = 0; i < MAX_LETTERS_ON_GRID; i++) {
         const { row, col, letter } = randomLetterPlacement(updatedGrid, snake);
         if (row !== -1 && col !== -1) {
           updatedGrid[row][col].type = "letter";
           updatedGrid[row][col].letter = letter;
-          newLetters.push({ x: col, y: row });
+          newLetters.push({
+            coordinates: { x: col, y: row },
+            type: "letter",
+            letter,
+          });
         }
       }
 
@@ -290,11 +306,13 @@ const Game = () => {
   );
 
   const checkCollision = useCallback(
-    (newHead: SnakeSegment) => {
+    (newHead: CellType) => {
       return (
         snake.length > 1 &&
         snake.some(
-          (segment) => segment.x === newHead.x && segment.y === newHead.y,
+          (segment) =>
+            segment.coordinates.x === newHead.coordinates.x &&
+            segment.coordinates.y === newHead.coordinates.y,
         )
       );
     },
@@ -306,10 +324,17 @@ const Game = () => {
     setSnake((prevSnake) => {
       const head = prevSnake[0]; // Get current head
       const newHead = {
-        x: (head.x + direction.coordinate.x + GRID_SIZE) % GRID_SIZE,
-        y: (head.y + direction.coordinate.y + GRID_SIZE) % GRID_SIZE,
+        coordinates: {
+          x:
+            (head.coordinates.x + direction.coordinates.x + GRID_SIZE) %
+            GRID_SIZE,
+          y:
+            (head.coordinates.y + direction.coordinates.y + GRID_SIZE) %
+            GRID_SIZE,
+        },
+        type: "snake",
         letter: head.letter,
-      } as SnakeSegment;
+      } as CellType;
 
       // Check if snake collides with itself
       if (checkCollision(newHead)) {
@@ -333,8 +358,13 @@ const Game = () => {
       let growSnake = false;
 
       // If the new head position is a letter, pick it up
-      if (updatedGrid[newHead.y][newHead.x].type === "letter") {
-        const pickedLetter = updatedGrid[newHead.y][newHead.x].letter as string;
+      if (
+        updatedGrid[newHead.coordinates.y][newHead.coordinates.x].type ===
+        "letter"
+      ) {
+        const pickedLetter = updatedGrid[newHead.coordinates.y][
+          newHead.coordinates.x
+        ].letter as string;
 
         // Set the new head's letter to the picked letter
         newHead.letter = pickedLetter;
@@ -383,10 +413,24 @@ const Game = () => {
 
       // Clear the tail position in the grid
       const tail = prevSnake[prevSnake.length - 1];
-      updatedGrid[tail.y][tail.x] = { type: "empty", letter: undefined };
+      updatedGrid[tail.coordinates.y][tail.coordinates.x] = {
+        type: "empty",
+        letter: undefined,
+        coordinates: {
+          y: tail.coordinates.y,
+          x: tail.coordinates.x,
+        },
+      };
 
-      newSnake.forEach(({ x, y, letter }) => {
-        updatedGrid[y][x] = { type: "snake", letter: letter };
+      newSnake.forEach(({ coordinates, letter }) => {
+        updatedGrid[coordinates.y][coordinates.x] = {
+          type: "snake",
+          letter: letter,
+          coordinates: {
+            x: coordinates.x,
+            y: coordinates.y,
+          },
+        };
       });
 
       setGrid(updatedGrid); // Update the grid with new positions
@@ -403,10 +447,10 @@ const Game = () => {
       if (newDirection) {
         // Prevent reversing direction
         if (
-          (direction.coordinate.x === 0 && newDirection.x !== 0) ||
-          (direction.coordinate.y === 0 && newDirection.y !== 0)
+          (direction.coordinates.x === 0 && newDirection.x !== 0) ||
+          (direction.coordinates.y === 0 && newDirection.y !== 0)
         ) {
-          setDirection({ coordinate: newDirection, direction: key });
+          setDirection({ coordinates: newDirection, direction: key });
         }
       }
     };
@@ -433,24 +477,10 @@ const Game = () => {
       <h1>Snake Word Game</h1>
       <h2>Current snake: {gameOver ? "Game Over!" : getSnakeLetters(snake)}</h2>
       <h3>Longest word: {longestWord}</h3>
-      <h3>Letters on board: {JSON.stringify(letters)}</h3>
-      {JSON.stringify(snake)}
+      <h3>Letters on board: {letters.map((l) => l.letter).join(", ")}</h3>
       <Grid grid={grid} direction={direction} snakeHead={snake[0]} />
     </div>
   );
 };
+
 export default Game;
-
-// Maybe a cool idea?
-
-// As you go on, another twist to the snake is that you can collide with a segment of yourself
-// to break off chunks of letters that are not legal
-
-// So:
-
-// PIE-KSOOD
-
-// And if the snake head touches any part of the snake body that does not have legal words,
-// those break off in place on the grid and become a block to avoid on the grid
-
-// PIE x x x x KSOOO
