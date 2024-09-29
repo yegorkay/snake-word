@@ -110,7 +110,7 @@ const Grid = ({
           >
             {cell?.letter && (
               <span
-                className={`letter ${cell.type === "snake" && isSnakeHead ? `snake-${directionClass}` : ""}`.trim()}
+                className={`letter ${cell.type === "snake" && isSnakeHead && directionClass ? `snake-${directionClass}` : ""}`.trim()}
               >
                 {cell.letter}
               </span>
