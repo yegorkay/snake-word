@@ -396,23 +396,13 @@ const Game = () => {
         });
 
         setGrid(placeNewLetter(updatedGrid)); // Place new letters
-
-        const longestValidWord = findLongestValidWordAtEnd(
-          prevSnake,
-          validWordSet,
-        );
-
-        if (longestValidWord.length > 1) {
-          console.log(`Found a valid word: ${longestValidWord}`);
-          setLongestWord(longestValidWord);
-        }
       }
 
-      const newSnake = [newHead]; // Start building the new snake
+      // Build the new snake based on the current move
+      const newSnake = [newHead];
 
-      // Grow the snake based on the direction of movement
       if (growSnake) {
-        // Add new segments behind the head
+        // Grow the snake
         newSnake.push(
           ...prevSnake.map((segment) => ({
             ...segment,
@@ -428,6 +418,7 @@ const Game = () => {
         }
       }
 
+      // Clear the tail in the grid
       const tail = prevSnake[prevSnake.length - 1];
       updatedGrid[tail.coordinates.y][tail.coordinates.x] = {
         type: "empty",
@@ -438,7 +429,7 @@ const Game = () => {
         },
       };
 
-      // Re-assign snake positions on the grid
+      // Update the grid with the new snake positions
       newSnake.forEach(({ coordinates, letter }) => {
         updatedGrid[coordinates.y][coordinates.x] = {
           type: "snake",
@@ -450,7 +441,18 @@ const Game = () => {
         };
       });
 
-      setGrid(updatedGrid); // Update the grid
+      setGrid(updatedGrid); // Update the grid with the new positions
+
+      const longestValidWord = findLongestValidWordAtEnd(
+        newSnake,
+        validWordSet,
+      );
+
+      if (longestValidWord.length > 1) {
+        console.log(`Found a valid word: ${longestValidWord}`);
+        setLongestWord(longestValidWord);
+      }
+
       return newSnake; // Return the updated snake
     });
   }, [direction, grid, placeNewLetter, checkCollision, validWordSet]);
