@@ -18,13 +18,23 @@ const directions = {
   d: { x: 1, y: 0 },
 } as const satisfies { [key: string]: Coordinate };
 
-function getCardinalDirection(dir: keyof typeof directions | undefined) {
-  if (dir === "arrowup" || dir === "w") return "up";
-  if (dir === "arrowdown" || dir === "s") return "down";
-  if (dir === "arrowleft" || dir === "a") return "left";
-  if (dir === "arrowright" || dir === "d") return "right";
-
-  return undefined;
+function getDirectionClass(direction: keyof typeof directions | undefined) {
+  switch (direction) {
+    case "arrowup":
+    case "w":
+      return "up";
+    case "arrowdown":
+    case "s":
+      return "down";
+    case "arrowleft":
+    case "a":
+      return "left";
+    case "arrowright":
+    case "d":
+      return "right";
+    default:
+      return "";
+  }
 }
 
 // Some random GPT-assisted weights.
@@ -78,7 +88,7 @@ const Grid = ({
   };
   snakeHead: CellType;
 }) => {
-  const cardinalDirection = getCardinalDirection(direction.direction);
+  const directionClass = getDirectionClass(direction.direction);
 
   return (
     <div className="grid">
@@ -88,18 +98,23 @@ const Grid = ({
         const isSnakeHead =
           rowIndex === snakeHead.coordinates.y &&
           colIndex === snakeHead.coordinates.x;
-        const snakeClass = isSnakeHead
-          ? `snake pointed-${cardinalDirection}` // Apply direction-specific class
-          : "snake";
+        const cellClass =
+          cell.type === "snake" && directionClass
+            ? `pointed-${directionClass}` // Apply direction-specific class
+            : "";
 
         return (
           <div
-            className={`cell ${cell.type} ${
-              cell.type === "snake" && isSnakeHead ? snakeClass : ""
-            }`.trim()}
+            className={`cell ${cell.type} ${isSnakeHead ? cellClass : ""}`.trim()}
             key={index}
           >
-            {cell?.letter && <span className="letter">{cell.letter}</span>}
+            {cell?.letter && (
+              <span
+                className={`letter ${cell.type === "snake" && isSnakeHead ? `snake-${directionClass}` : ""}`.trim()}
+              >
+                {cell.letter}
+              </span>
+            )}
           </div>
         );
       })}
@@ -323,6 +338,8 @@ const Game = () => {
   const moveSnake = useCallback(() => {
     setSnake((prevSnake) => {
       const head = prevSnake[0]; // Get current head
+
+      // Calculate new head position based on current direction
       const newHead = {
         coordinates: {
           x:
@@ -333,31 +350,30 @@ const Game = () => {
             GRID_SIZE,
         },
         type: "snake",
-        letter: head.letter,
+        letter: head.letter, // Use the head's current letter for now
       } as CellType;
 
-      // Check if snake collides with itself
+      // Check if the snake collides with itself
       if (checkCollision(newHead)) {
         const updatedGrid = grid.map((row) =>
           row.map((cell) => {
             if (cell.type === "snake") {
-              return { ...cell, type: "collision" } satisfies CellType; // Change snake cells to "collision"
+              return { ...cell, type: "collision" } satisfies CellType;
             }
             return cell;
           }),
         );
 
-        setGrid(updatedGrid); // Update the grid to show the collision
+        setGrid(updatedGrid); // Mark collision
         setGameOver(true); // End the game
-        return prevSnake; // Keep snake as is, no more movement
+        return prevSnake; // Stop movement
       }
 
-      // Create a new grid to avoid mutating the original
       const updatedGrid = grid.map((row) => row.map((cell) => ({ ...cell })));
 
       let growSnake = false;
 
-      // If the new head position is a letter, pick it up
+      // If new head position is a letter, the snake grows
       if (
         updatedGrid[newHead.coordinates.y][newHead.coordinates.x].type ===
         "letter"
@@ -366,10 +382,10 @@ const Game = () => {
           newHead.coordinates.x
         ].letter as string;
 
-        // Set the new head's letter to the picked letter
-        newHead.letter = pickedLetter;
+        newHead.letter = pickedLetter; // Assign the new head its letter
+        growSnake = true; // Signal growth
 
-        // Clear all letters from the grid
+        // Clear the old letters and place new ones
         updatedGrid.forEach((row) => {
           row.forEach((cell) => {
             if (cell.type === "letter") {
@@ -379,13 +395,12 @@ const Game = () => {
           });
         });
 
-        // Mark that the snake needs to grow
-        growSnake = true;
+        setGrid(placeNewLetter(updatedGrid)); // Place new letters
 
-        // Place two new random letters on the grid
-        setGrid(placeNewLetter(updatedGrid));
-
-        const longestValidWord = findLongestValidWordAtEnd(snake, validWordSet);
+        const longestValidWord = findLongestValidWordAtEnd(
+          prevSnake,
+          validWordSet,
+        );
 
         if (longestValidWord.length > 1) {
           console.log(`Found a valid word: ${longestValidWord}`);
@@ -393,16 +408,18 @@ const Game = () => {
         }
       }
 
-      const newSnake = [newHead];
+      const newSnake = [newHead]; // Start building the new snake
 
+      // Grow the snake based on the direction of movement
       if (growSnake) {
+        // Add new segments behind the head
         newSnake.push(
           ...prevSnake.map((segment) => ({
             ...segment,
           })),
         );
       } else {
-        // Shift snake body by one
+        // Just move forward, no growth
         for (let i = 0; i < prevSnake.length - 1; i++) {
           newSnake.push({
             ...prevSnake[i],
@@ -411,7 +428,6 @@ const Game = () => {
         }
       }
 
-      // Clear the tail position in the grid
       const tail = prevSnake[prevSnake.length - 1];
       updatedGrid[tail.coordinates.y][tail.coordinates.x] = {
         type: "empty",
@@ -422,6 +438,7 @@ const Game = () => {
         },
       };
 
+      // Re-assign snake positions on the grid
       newSnake.forEach(({ coordinates, letter }) => {
         updatedGrid[coordinates.y][coordinates.x] = {
           type: "snake",
@@ -433,10 +450,10 @@ const Game = () => {
         };
       });
 
-      setGrid(updatedGrid); // Update the grid with new positions
+      setGrid(updatedGrid); // Update the grid
       return newSnake; // Return the updated snake
     });
-  }, [direction, grid, placeNewLetter, checkCollision, snake, validWordSet]);
+  }, [direction, grid, placeNewLetter, checkCollision, validWordSet]);
 
   // Update snake position on grid and handle movement
   useEffect(() => {
