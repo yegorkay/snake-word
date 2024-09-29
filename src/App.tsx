@@ -87,27 +87,26 @@ const Grid = ({
 
   return (
     <div className="grid">
-      {grid.map((row, rowIndex) => (
-        <div className="row" key={rowIndex}>
-          {row.map((cell, colIndex) => {
-            const isSnakeHead =
-              rowIndex === snakeHead.y && colIndex === snakeHead.x;
-            const snakeClass = isSnakeHead
-              ? `snake pointed-${cardinalDirection}` // Apply direction-specific class
-              : "snake";
-            return (
-              <div
-                className={`cell ${cell.type} ${
-                  cell.type === "snake" && isSnakeHead ? snakeClass : ""
-                }`}
-                key={colIndex}
-              >
-                {cell?.letter && <span className="letter">{cell.letter}</span>}
-              </div>
-            );
-          })}
-        </div>
-      ))}
+      {grid.flat().map((cell, index) => {
+        const rowIndex = Math.floor(index / GRID_SIZE); // Calculate the row index
+        const colIndex = index % GRID_SIZE; // Calculate the column index
+        const isSnakeHead =
+          rowIndex === snakeHead.y && colIndex === snakeHead.x;
+        const snakeClass = isSnakeHead
+          ? `snake pointed-${cardinalDirection}` // Apply direction-specific class
+          : "snake";
+
+        return (
+          <div
+            className={`cell ${cell.type} ${
+              cell.type === "snake" && isSnakeHead ? snakeClass : ""
+            }`.trim()}
+            key={index}
+          >
+            {cell?.letter && <span className="letter">{cell.letter}</span>}
+          </div>
+        );
+      })}
     </div>
   );
 };
@@ -430,7 +429,7 @@ const Game = () => {
   }, [direction, moveSnake]);
 
   return (
-    <div>
+    <div className="container">
       <h1>Snake Word Game</h1>
       <h2>Current snake: {gameOver ? "Game Over!" : getSnakeLetters(snake)}</h2>
       <h3>Longest word: {longestWord}</h3>
