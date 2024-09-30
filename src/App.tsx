@@ -3,7 +3,6 @@ import { useQuery } from "@tanstack/react-query";
 import { useInterval } from "./use-interval";
 
 const GRID_SIZE = 10; // 10x10 grid for simplicity
-const ENABLE_MOVEMENT = true;
 const MAX_LETTERS_ON_GRID = 3; // Configurable number of letters to place on the grid
 const SNAKE_SPEED_IN_MS = 500;
 // Some random GPT-assisted weights.
@@ -78,14 +77,16 @@ type CellType = {
 const Grid = ({
   grid,
   direction,
-  snakeHead,
+  snake,
+  longestWordCoordinates,
 }: {
   grid: CellType[][];
   direction: {
     coordinates: Coordinate;
     direction: keyof typeof directionsMap | undefined;
   };
-  snakeHead: CellType;
+  snake: CellType[];
+  longestWordCoordinates: Coordinate[];
 }) => {
   const directionClass = getDirectionClass(direction.direction);
 
@@ -93,7 +94,7 @@ const Grid = ({
     collision: "bg-red-600",
     empty: "bg-white",
     letter: "bg-yellow-600",
-    snake: "bg-green-600",
+    snake: "bg-zinc-300",
   } as { [type in CellType["type"]]: string };
 
   const arrowMap = {
@@ -104,6 +105,8 @@ const Grid = ({
   } as {
     [key in typeof directionClass]: string;
   };
+
+  const snakeHead = snake[0];
 
   return (
     <div className="grid grid-cols-10 grid-rows-10 gap-1 w-fit border-2 border-slate-400 p-1">
@@ -116,9 +119,15 @@ const Grid = ({
 
         const cellClass = cellTypeColorMap[grid[rowIndex][colIndex].type];
 
+        const isValidWordCell = Boolean(
+          longestWordCoordinates.find(
+            (coords) => rowIndex === coords.y && colIndex === coords.x,
+          ),
+        );
+
         return (
           <div
-            className={`border w-7 h-7 flex justify-center items-center font-bold text-lg text-center relative ${cellClass} ${isSnakeHead ? arrowMap[directionClass] : ""}`}
+            className={`border w-7 h-7 flex justify-center items-center font-bold text-lg text-center relative ${isValidWordCell ? "bg-green-600" : cellClass} ${isSnakeHead ? arrowMap[directionClass] : ""}`}
             key={index}
           >
             {cell?.letter && <span>{cell.letter}</span>}
@@ -129,33 +138,42 @@ const Grid = ({
   );
 };
 
+function getLettersFromSnake(snake: CellType[]) {
+  const letters = snake.map((segment) => segment.letter);
+  const potentialWord = letters.join("").toLowerCase();
+
+  return { letters, potentialWord };
+}
+
 function findLongestValidWordAtEnd(
   snakeSegments: CellType[],
   validWordSet: Set<string> | undefined,
 ) {
   // Get letters in the order they appear in the snake
-  const letters = snakeSegments
-    .map((segment) => segment.letter)
-    .join("")
-    .toLowerCase();
+  const { potentialWord } = getLettersFromSnake(snakeSegments);
 
   let longestWord = ""; // Initialize a variable to hold the longest word
+  let longestWordCoordinates: Coordinate[] = [];
 
   // Start checking from the end of the snake
-  for (let end = letters.length; end > 0; end--) {
+  for (let end = potentialWord.length; end > 0; end--) {
     for (let start = 0; start < end; start++) {
-      const substring = letters.slice(start, end);
+      const substring = potentialWord.slice(start, end);
       // Check if the substring is in the validWordSet
       if (
         validWordSet?.has(substring) &&
         substring.length > longestWord.length
       ) {
         longestWord = substring; // Update longestWord if a longer valid word is found
+        // Extract the corresponding coordinates for the valid word
+        longestWordCoordinates = snakeSegments
+          .slice(start, end)
+          .map((segment) => segment.coordinates);
       }
     }
   }
 
-  return longestWord; // Return the longest valid word found
+  return { word: longestWord, coordinates: longestWordCoordinates }; // Return the longest valid word found
 }
 
 // Function to generate an empty grid
@@ -283,6 +301,7 @@ const Game = () => {
   const [grid, setGrid] = useState(initialGrid);
   const [snake, setSnake] = useState(initialSnake);
   const [letters, setLetters] = useState(initialLetters);
+  const [enableMovement, toggleEnableMovement] = useState(true);
   const [direction, setDirection] = useState<{
     coordinates: Coordinate;
     direction: keyof typeof directionsMap | undefined;
@@ -292,7 +311,10 @@ const Game = () => {
   }); // Current direction of movement
 
   const [gameOver, setGameOver] = useState(false); // Track game over state
-  const [longestWord, setLongestWord] = useState("");
+  const [longestWord, setLongestWord] = useState<{
+    word: string;
+    coordinates: Coordinate[];
+  }>({ word: "", coordinates: [] });
 
   const { data: validWordSet } = useQuery({
     queryFn: () =>
@@ -411,13 +433,10 @@ const Game = () => {
 
         setGrid(placeNewLetter(updatedGrid)); // Place only as many letters as needed
 
-        const longestValidWord = findLongestValidWordAtEnd(
-          prevSnake,
-          validWordSet,
-        );
+        const value = findLongestValidWordAtEnd(prevSnake, validWordSet);
 
-        if (longestValidWord.length > 1) {
-          setLongestWord(longestValidWord);
+        if (value.word.length > 1) {
+          setLongestWord(value);
         }
       }
 
@@ -466,13 +485,10 @@ const Game = () => {
 
       setGrid(updatedGrid); // Update the grid with the new positions
 
-      const longestValidWord = findLongestValidWordAtEnd(
-        newSnake,
-        validWordSet,
-      );
+      const value = findLongestValidWordAtEnd(newSnake, validWordSet);
 
-      if (longestValidWord.length > 1) {
-        setLongestWord(longestValidWord);
+      if (value.word.length > 1) {
+        setLongestWord(value);
       }
 
       return newSnake; // Return the updated snake
@@ -498,31 +514,47 @@ const Game = () => {
 
     window.addEventListener(
       "keydown",
-      ENABLE_MOVEMENT ? handleKeyDown : () => {},
+      enableMovement ? handleKeyDown : () => {},
     );
 
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [direction, moveSnake]);
+  }, [direction, moveSnake, enableMovement]);
 
   useInterval(() => {
-    if (ENABLE_MOVEMENT) {
+    if (enableMovement) {
       moveSnake();
     }
   }, SNAKE_SPEED_IN_MS);
 
   return (
     <div className="container mx-auto flex flex-col justify-center items-center">
-      <h1>Snake Word Game</h1>
-
-      <h2>Current snake: {gameOver ? "Game Over!" : getSnakeLetters(snake)}</h2>
-      <h3>Longest word: {longestWord}</h3>
-      {import.meta.env.DEV && (
-        <h3>Letters history: {letters.map((l) => l.letter).join(", ")}</h3>
+      {gameOver && (
+        <h2>
+          Game Over! Longest word: <strong>{longestWord.word}</strong>
+        </h2>
       )}
-      <Grid grid={grid} direction={direction} snakeHead={snake[0]} />
-      <div className="flex flex-col gap-4 items-center m-4">
+      <h3>Longest word: {longestWord.word}</h3>
+      {import.meta.env.DEV && (
+        <>
+          <h2>Current snake: {getSnakeLetters(snake)}</h2>
+          <h3>Letters history: {letters.map((l) => l.letter).join(", ")}</h3>
+          <button
+            className="border-2 border-slate-600 p-2 m-2"
+            onClick={() => toggleEnableMovement((en) => !en)}
+          >
+            Toggle Movement: {JSON.stringify(enableMovement)}
+          </button>
+        </>
+      )}
+      <Grid
+        grid={grid}
+        direction={direction}
+        snake={snake}
+        longestWordCoordinates={longestWord.coordinates}
+      />
+      <div className="sm:hidden flex flex-col gap-4 items-center m-4">
         <button
           className="border-2 border-slate-400 p-4 w-16 h-16"
           onClick={() =>
