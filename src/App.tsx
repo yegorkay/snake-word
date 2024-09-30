@@ -1,9 +1,11 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useInterval } from "./use-interval";
 
-const GRID_SIZE = 10; // 10x10 grid for simplicity
-const MAX_LETTERS_ON_GRID = 6; // Configurable number of letters to place on the grid
+const ROW_COUNT = 16;
+const COLUMN_COUNT = 10;
+
+const MAX_LETTERS_ON_GRID = 20; // Configurable number of letters to place on the grid
 const SNAKE_SPEED_IN_MS = 500;
 // Some random GPT-assisted weights.
 const letterWeights = {
@@ -109,10 +111,16 @@ const Grid = ({
   const snakeHead = snake[0];
 
   return (
-    <div className="grid grid-cols-10 grid-rows-10 gap-1 w-fit border-2 border-slate-400 p-1">
+    <div
+      style={{
+        gridTemplateColumns: `repeat(${COLUMN_COUNT}, 1fr)`,
+        gridTemplateRows: `repeat(${ROW_COUNT}, 1fr)`,
+      }}
+      className={"grid mt-5 gap-1 w-fit border-2 border-slate-400 p-1"}
+    >
       {grid.flat().map((cell, index) => {
-        const rowIndex = Math.floor(index / GRID_SIZE); // Calculate the row index
-        const colIndex = index % GRID_SIZE; // Calculate the column index
+        const rowIndex = Math.floor(index / COLUMN_COUNT); // Calculate the row index
+        const colIndex = index % COLUMN_COUNT; // Calculate the column index
         const isSnakeHead =
           rowIndex === snakeHead.coordinates.y &&
           colIndex === snakeHead.coordinates.x;
@@ -127,7 +135,7 @@ const Grid = ({
 
         return (
           <div
-            className={`border w-7 h-7 flex justify-center items-center font-bold text-lg text-center relative ${isValidWordCell ? "bg-green-600" : cellClass} ${isSnakeHead ? arrowMap[directionClass] : ""}`}
+            className={`${import.meta.env.DEV ? "border" : ""} w-8 h-8 flex justify-center items-center font-bold text-lg text-center relative ${isValidWordCell ? "bg-green-600" : cellClass} ${isSnakeHead ? arrowMap[directionClass] : ""}`.trim()}
             key={index}
           >
             {cell?.letter && <span>{cell.letter}</span>}
@@ -177,20 +185,19 @@ function findLongestValidWordAtEnd(
 }
 
 // Function to generate an empty grid
-function generateEmptyGrid(): CellType[][] {
-  return Array.from({ length: GRID_SIZE }, () =>
+function generateEmptyGrid(ROW_COUNT: number, COL_COUNT: number): CellType[][] {
+  return Array.from({ length: ROW_COUNT }, (_, rowIndex) =>
     Array.from(
-      { length: GRID_SIZE },
-      () =>
+      { length: COL_COUNT },
+      (_, colIndex) =>
         ({
           type: "empty",
           letter: undefined,
-          coordinates: { x: 0, y: 0 },
+          coordinates: { x: colIndex, y: rowIndex },
         }) satisfies CellType,
     ),
   );
 }
-
 function getRandomWeightedLetter() {
   const totalWeight = Object.values(letterWeights).reduce(
     (sum, weight) => sum + weight,
@@ -212,9 +219,11 @@ function getRandomWeightedLetter() {
 const INIT_SNAKE_HEAD_LETTER = getRandomWeightedLetter();
 
 function initializeSnake(): CellType {
-  const mid = Math.ceil(GRID_SIZE / 2) - 1;
   return {
-    coordinates: { x: mid, y: mid },
+    coordinates: {
+      x: Math.ceil(COLUMN_COUNT / 2) - 1,
+      y: Math.ceil(ROW_COUNT / 2) - 1,
+    },
     letter: INIT_SNAKE_HEAD_LETTER,
     type: "snake",
   };
@@ -222,7 +231,7 @@ function initializeSnake(): CellType {
 
 function initializeGrid() {
   const snakeHead = initializeSnake();
-  const initialGrid = generateEmptyGrid();
+  const initialGrid = generateEmptyGrid(ROW_COUNT, COLUMN_COUNT);
 
   const lettersOnGrid: CellType[] = [];
 
@@ -297,6 +306,8 @@ const Game = () => {
     snake: initialSnake,
     letters: initialLetters,
   } = useMemo(() => initializeGrid(), []);
+
+  const containerRef = useRef<HTMLDivElement | null>(null);
 
   const [grid, setGrid] = useState(initialGrid);
   const [snake, setSnake] = useState(initialSnake);
@@ -382,11 +393,11 @@ const Game = () => {
       const newHead = {
         coordinates: {
           x:
-            (head.coordinates.x + direction.coordinates.x + GRID_SIZE) %
-            GRID_SIZE,
+            (head.coordinates.x + direction.coordinates.x + COLUMN_COUNT) %
+            COLUMN_COUNT,
           y:
-            (head.coordinates.y + direction.coordinates.y + GRID_SIZE) %
-            GRID_SIZE,
+            (head.coordinates.y + direction.coordinates.y + ROW_COUNT) %
+            ROW_COUNT,
         },
         type: "snake",
         letter: head.letter, // Use the head's current letter for now
@@ -522,6 +533,64 @@ const Game = () => {
     };
   }, [direction, moveSnake, enableMovement]);
 
+  const handleTouchStart = (event: TouchEvent) => {
+    const touch = event.touches[0];
+    const { clientX, clientY } = touch;
+
+    // Check if the container is defined
+    if (!containerRef.current) return;
+
+    const container = containerRef.current;
+    const containerRect = container.getBoundingClientRect();
+
+    const screenWidth = containerRect.width;
+    const screenHeight = containerRect.height;
+
+    // Define areas (25% of container for each side)
+    const leftArea = containerRect.left + screenWidth / 4;
+    const rightArea = containerRect.left + (screenWidth / 4) * 3;
+    const topArea = containerRect.top + screenHeight / 4;
+    const bottomArea = containerRect.top + (screenHeight / 4) * 3;
+
+    if (clientX < leftArea) {
+      setDirection({
+        coordinates: directionsMap.arrowleft,
+        direction: "arrowleft",
+      });
+    } else if (clientX > rightArea) {
+      setDirection({
+        coordinates: directionsMap.arrowright,
+        direction: "arrowright",
+      });
+    } else if (clientY < topArea) {
+      setDirection({
+        coordinates: directionsMap.arrowup,
+        direction: "arrowup",
+      });
+    } else if (clientY > bottomArea) {
+      setDirection({
+        coordinates: directionsMap.arrowdown,
+        direction: "arrowdown",
+      });
+    }
+  };
+
+  useEffect(() => {
+    const container = containerRef.current;
+
+    // Check if the container is defined before adding event listeners
+    if (container) {
+      container.addEventListener("touchstart", handleTouchStart);
+    }
+
+    return () => {
+      // Clean up event listener on component unmount
+      if (container) {
+        container.removeEventListener("touchstart", handleTouchStart);
+      }
+    };
+  }, []);
+
   useInterval(() => {
     if (enableMovement) {
       moveSnake();
@@ -548,59 +617,13 @@ const Game = () => {
           </button>
         </>
       )}
-      <Grid
-        grid={grid}
-        direction={direction}
-        snake={snake}
-        longestWordCoordinates={longestWord.coordinates}
-      />
-      <div className="sm:hidden flex flex-col gap-4 items-center m-4">
-        <button
-          className="border-2 border-slate-400 p-4 w-16 h-16"
-          onClick={() =>
-            setDirection({
-              coordinates: directionsMap.arrowup,
-              direction: "arrowup",
-            })
-          }
-        >
-          &#8593;
-        </button>
-        <div className="flex flex-row justify-center gap-20">
-          <button
-            className="border-2 border-slate-400 p-4 w-16 h-16"
-            onClick={() =>
-              setDirection({
-                coordinates: directionsMap.arrowleft,
-                direction: "arrowleft",
-              })
-            }
-          >
-            &#8592;
-          </button>
-          <button
-            className="border-2 border-slate-400 p-4 w-16 h-16"
-            onClick={() =>
-              setDirection({
-                coordinates: directionsMap.arrowright,
-                direction: "arrowright",
-              })
-            }
-          >
-            &#8594;
-          </button>
-        </div>
-        <button
-          className="border-2 border-slate-400 p-4 w-16 h-16"
-          onClick={() =>
-            setDirection({
-              coordinates: directionsMap.arrowdown,
-              direction: "arrowdown",
-            })
-          }
-        >
-          &#8595;
-        </button>
+      <div ref={containerRef} className="h-auto w-auto">
+        <Grid
+          grid={grid}
+          direction={direction}
+          snake={snake}
+          longestWordCoordinates={longestWord.coordinates}
+        />
       </div>
     </div>
   );
