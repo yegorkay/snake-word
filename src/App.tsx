@@ -533,7 +533,7 @@ const Game = () => {
 
   return (
     <div className="container mx-auto mt-4 flex flex-col justify-center items-center">
-      {import.meta.env.DEV !== true && (
+      {import.meta.env.DEV && (
         <>
           <h3>Letters history: {letters.map((l) => l.letter).join(", ")}</h3>
           <button
