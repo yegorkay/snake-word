@@ -303,6 +303,8 @@ const Game = () => {
     letters: initialLetters,
   } = useMemo(() => initializeGrid(), []);
 
+  const [snakeSpeed, setSnakeSpeed] = useState(SNAKE_SPEED_IN_MS);
+
   const [grid, setGrid] = useState(initialGrid);
   const [snake, setSnake] = useState(initialSnake);
   const [letters, setLetters] = useState(initialLetters);
@@ -433,6 +435,11 @@ const Game = () => {
         };
 
         setGrid(placeNewLetter(updatedGrid)); // Place only as many letters as needed
+
+        // Some arbitrary number factor
+        setSnakeSpeed((prevSpeed) =>
+          Math.round(prevSpeed - SNAKE_SPEED_IN_MS * (0.5 / 15)),
+        );
       }
 
       // Build the new snake based on the current move
@@ -528,7 +535,7 @@ const Game = () => {
         moveSnake();
       }
     },
-    gameOver ? null : SNAKE_SPEED_IN_MS,
+    gameOver ? null : snakeSpeed,
   );
 
   return (
