@@ -116,7 +116,7 @@ const Grid = ({
         gridTemplateColumns: `repeat(${COLUMN_COUNT}, 1fr)`,
         gridTemplateRows: `repeat(${ROW_COUNT}, 1fr)`,
       }}
-      className={"grid mt-5 gap-1 w-fit border-2 border-slate-400 p-1"}
+      className={"grid gap-1 w-fit border-2 border-slate-400 p-1"}
     >
       {grid.flat().map((cell, index) => {
         const rowIndex = Math.floor(index / COLUMN_COUNT); // Calculate the row index
@@ -528,74 +528,23 @@ const Game = () => {
       enableMovement ? handleKeyDown : () => {},
     );
 
+    if (gameOver) {
+      window.removeEventListener("keydown", handleKeyDown);
+    }
+
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [direction, moveSnake, enableMovement]);
+  }, [direction, moveSnake, enableMovement, gameOver]);
 
-  const handleTouchStart = (event: TouchEvent) => {
-    const touch = event.touches[0];
-    const { clientX, clientY } = touch;
-
-    // Check if the container is defined
-    if (!containerRef.current) return;
-
-    const container = containerRef.current;
-    const containerRect = container.getBoundingClientRect();
-
-    const screenWidth = containerRect.width;
-    const screenHeight = containerRect.height;
-
-    // Define areas (25% of container for each side)
-    const leftArea = containerRect.left + screenWidth / 4;
-    const rightArea = containerRect.left + (screenWidth / 4) * 3;
-    const topArea = containerRect.top + screenHeight / 4;
-    const bottomArea = containerRect.top + (screenHeight / 4) * 3;
-
-    if (clientX < leftArea) {
-      setDirection({
-        coordinates: directionsMap.arrowleft,
-        direction: "arrowleft",
-      });
-    } else if (clientX > rightArea) {
-      setDirection({
-        coordinates: directionsMap.arrowright,
-        direction: "arrowright",
-      });
-    } else if (clientY < topArea) {
-      setDirection({
-        coordinates: directionsMap.arrowup,
-        direction: "arrowup",
-      });
-    } else if (clientY > bottomArea) {
-      setDirection({
-        coordinates: directionsMap.arrowdown,
-        direction: "arrowdown",
-      });
-    }
-  };
-
-  useEffect(() => {
-    const container = containerRef.current;
-
-    // Check if the container is defined before adding event listeners
-    if (container) {
-      container.addEventListener("touchstart", handleTouchStart);
-    }
-
-    return () => {
-      // Clean up event listener on component unmount
-      if (container) {
-        container.removeEventListener("touchstart", handleTouchStart);
+  useInterval(
+    () => {
+      if (enableMovement) {
+        moveSnake();
       }
-    };
-  }, []);
-
-  useInterval(() => {
-    if (enableMovement) {
-      moveSnake();
-    }
-  }, SNAKE_SPEED_IN_MS);
+    },
+    gameOver ? null : SNAKE_SPEED_IN_MS,
+  );
 
   return (
     <div className="container mx-auto flex flex-col justify-center items-center">
@@ -607,7 +556,6 @@ const Game = () => {
       <h3>Longest word: {longestWord.word}</h3>
       {import.meta.env.DEV && (
         <>
-          <h2>Current snake: {getSnakeLetters(snake)}</h2>
           <h3>Letters history: {letters.map((l) => l.letter).join(", ")}</h3>
           <button
             className="border-2 border-slate-600 p-2 m-2"
@@ -615,9 +563,10 @@ const Game = () => {
           >
             Toggle Movement: {JSON.stringify(enableMovement)}
           </button>
+          {JSON.stringify(snake.map(({ letter }) => letter))}
         </>
       )}
-      <div ref={containerRef} className="h-auto w-auto">
+      <div ref={containerRef} className="h-auto w-auto mb-3">
         <Grid
           grid={grid}
           direction={direction}
@@ -625,6 +574,55 @@ const Game = () => {
           longestWordCoordinates={longestWord.coordinates}
         />
       </div>
+      <div className="sm:hidden flex flex-col gap-4 items-center m-4">
+        <button
+          className="border-2 border-slate-400 p-4 w-16 h-16"
+          onClick={() =>
+            setDirection({
+              coordinates: directionsMap.arrowup,
+              direction: "arrowup",
+            })
+          }
+        >
+          &#8593;
+        </button>
+        <div className="flex flex-row justify-center gap-20">
+          <button
+            className="border-2 border-slate-400 p-4 w-16 h-16"
+            onClick={() =>
+              setDirection({
+                coordinates: directionsMap.arrowleft,
+                direction: "arrowleft",
+              })
+            }
+          >
+            &#8592;
+          </button>
+          <button
+            className="border-2 border-slate-400 p-4 w-16 h-16"
+            onClick={() =>
+              setDirection({
+                coordinates: directionsMap.arrowright,
+                direction: "arrowright",
+              })
+            }
+          >
+            &#8594;
+          </button>
+        </div>
+        <button
+          className="border-2 border-slate-400 p-4 w-16 h-16"
+          onClick={() =>
+            setDirection({
+              coordinates: directionsMap.arrowdown,
+              direction: "arrowdown",
+            })
+          }
+        >
+          &#8595;
+        </button>
+      </div>
+      <h2 className="font-bold text-lg">{getSnakeLetters(snake)}</h2>
     </div>
   );
 };
