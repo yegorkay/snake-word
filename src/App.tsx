@@ -296,10 +296,6 @@ function randomLetterPlacement(currentGrid: CellType[][], snake: CellType[]) {
   };
 }
 
-function getSnakeLetters(snake: CellType[]) {
-  return snake.map((segment) => segment.letter).join("");
-}
-
 const Game = () => {
   const {
     grid: initialGrid,
@@ -322,10 +318,6 @@ const Game = () => {
   }); // Current direction of movement
 
   const [gameOver, setGameOver] = useState(false); // Track game over state
-  const [longestWord, setLongestWord] = useState<{
-    word: string;
-    coordinates: Coordinate[];
-  }>({ word: "", coordinates: [] });
 
   const { data: validWordSet } = useQuery({
     queryFn: () =>
@@ -443,12 +435,6 @@ const Game = () => {
         };
 
         setGrid(placeNewLetter(updatedGrid)); // Place only as many letters as needed
-
-        const value = findLongestValidWordAtEnd(prevSnake, validWordSet);
-
-        if (value.word.length > 1) {
-          setLongestWord(value);
-        }
       }
 
       // Build the new snake based on the current move
@@ -496,15 +482,15 @@ const Game = () => {
 
       setGrid(updatedGrid); // Update the grid with the new positions
 
-      const value = findLongestValidWordAtEnd(newSnake, validWordSet);
+      // const value = findLongestValidWordAtEnd(newSnake, validWordSet);
 
-      if (value.word.length > 1) {
-        setLongestWord(value);
-      }
+      // if (value.word.length > 1) {
+      //   setLongestWord(value);
+      // }
 
       return newSnake; // Return the updated snake
     });
-  }, [direction, grid, placeNewLetter, checkCollision, validWordSet]);
+  }, [direction, grid, placeNewLetter, checkCollision]);
 
   // Update snake position on grid and handle movement
   useEffect(() => {
@@ -537,6 +523,13 @@ const Game = () => {
     };
   }, [direction, moveSnake, enableMovement, gameOver]);
 
+  const reverseSnake = useMemo(() => [...snake].reverse(), [snake]);
+
+  const longestWordData = useMemo(
+    () => findLongestValidWordAtEnd(reverseSnake, validWordSet),
+    [validWordSet, reverseSnake],
+  );
+
   useInterval(
     () => {
       if (enableMovement) {
@@ -550,10 +543,9 @@ const Game = () => {
     <div className="container mx-auto flex flex-col justify-center items-center">
       {gameOver && (
         <h2>
-          Game Over! Longest word: <strong>{longestWord.word}</strong>
+          Game Over! Longest word: <strong>{longestWordData.word}</strong>
         </h2>
       )}
-      <h3>Longest word: {longestWord.word}</h3>
       {import.meta.env.DEV && (
         <>
           <h3>Letters history: {letters.map((l) => l.letter).join(", ")}</h3>
@@ -563,7 +555,7 @@ const Game = () => {
           >
             Toggle Movement: {JSON.stringify(enableMovement)}
           </button>
-          {JSON.stringify(snake.map(({ letter }) => letter))}
+          {JSON.stringify(reverseSnake.map(({ letter }) => letter))}
         </>
       )}
       <div ref={containerRef} className="h-auto w-auto mb-3">
@@ -571,7 +563,7 @@ const Game = () => {
           grid={grid}
           direction={direction}
           snake={snake}
-          longestWordCoordinates={longestWord.coordinates}
+          longestWordCoordinates={longestWordData.coordinates}
         />
       </div>
       <div className="sm:hidden flex flex-col gap-4 items-center m-4">
@@ -622,7 +614,24 @@ const Game = () => {
           &#8595;
         </button>
       </div>
-      <h2 className="font-bold text-lg">{getSnakeLetters(snake)}</h2>
+      {longestWordData?.word && (
+        <>
+          <h3 className="font-bold text-lg">Longest word: </h3>
+          <div className="flex gap-1">
+            {longestWordData?.word &&
+              longestWordData.word.split("").map((letter, index) => (
+                <div
+                  className={
+                    "w-8 h-8 capitalize flex justify-center items-center font-bold text-lg text-center relative bg-green-600"
+                  }
+                  key={`${letter}:${index}`}
+                >
+                  {letter}
+                </div>
+              ))}
+          </div>
+        </>
+      )}
     </div>
   );
 };
