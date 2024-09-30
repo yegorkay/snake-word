@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useInterval } from "./use-interval";
 
 const GRID_SIZE = 10; // 10x10 grid for simplicity
-const MAX_LETTERS_ON_GRID = 3; // Configurable number of letters to place on the grid
+const MAX_LETTERS_ON_GRID = 6; // Configurable number of letters to place on the grid
 const SNAKE_SPEED_IN_MS = 500;
 // Some random GPT-assisted weights.
 const letterWeights = {
