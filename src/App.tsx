@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useInterval } from "./use-interval";
 
@@ -75,6 +75,22 @@ type CellType = {
   letter?: string;
 };
 
+const cellTypeColorMap = {
+  collision: "bg-red-600",
+  empty: "bg-white",
+  letter: "bg-yellow-600",
+  snake: "bg-zinc-300",
+} as { [type in CellType["type"]]: string };
+
+const arrowMap = {
+  up: "[clip-path:polygon(0%_40%,50%_0%,100%_40%,100%_100%,0%_100%)]",
+  down: "[clip-path:polygon(0%_0%,100%_0%,100%_60%,50%_100%,0%_60%)]",
+  left: "[clip-path:polygon(40%_0%,100%_0%,100%_100%,40%_100%,0%_50%)]",
+  right: "[clip-path:polygon(0%_0%,60%_0%,100%_50%,60%_100%,0%_100%)]",
+} as {
+  [key in ReturnType<typeof getDirectionClass>]: string;
+};
+
 // A functional component that renders the grid
 const Grid = ({
   grid,
@@ -91,22 +107,6 @@ const Grid = ({
   longestWordCoordinates: Coordinate[];
 }) => {
   const directionClass = getDirectionClass(direction.direction);
-
-  const cellTypeColorMap = {
-    collision: "bg-red-600",
-    empty: "bg-white",
-    letter: "bg-yellow-600",
-    snake: "bg-zinc-300",
-  } as { [type in CellType["type"]]: string };
-
-  const arrowMap = {
-    up: "[clip-path:polygon(0%_40%,50%_0%,100%_40%,100%_100%,0%_100%)]",
-    down: "[clip-path:polygon(0%_0%,100%_0%,100%_60%,50%_100%,0%_60%)]",
-    left: "[clip-path:polygon(40%_0%,100%_0%,100%_100%,40%_100%,0%_50%)]",
-    right: "[clip-path:polygon(0%_0%,60%_0%,100%_50%,60%_100%,0%_100%)]",
-  } as {
-    [key in typeof directionClass]: string;
-  };
 
   const snakeHead = snake[0];
 
@@ -303,8 +303,6 @@ const Game = () => {
     letters: initialLetters,
   } = useMemo(() => initializeGrid(), []);
 
-  const containerRef = useRef<HTMLDivElement | null>(null);
-
   const [grid, setGrid] = useState(initialGrid);
   const [snake, setSnake] = useState(initialSnake);
   const [letters, setLetters] = useState(initialLetters);
@@ -482,12 +480,6 @@ const Game = () => {
 
       setGrid(updatedGrid); // Update the grid with the new positions
 
-      // const value = findLongestValidWordAtEnd(newSnake, validWordSet);
-
-      // if (value.word.length > 1) {
-      //   setLongestWord(value);
-      // }
-
       return newSnake; // Return the updated snake
     });
   }, [direction, grid, placeNewLetter, checkCollision]);
@@ -540,13 +532,8 @@ const Game = () => {
   );
 
   return (
-    <div className="container mx-auto flex flex-col justify-center items-center">
-      {gameOver && (
-        <h2>
-          Game Over! Longest word: <strong>{longestWordData.word}</strong>
-        </h2>
-      )}
-      {import.meta.env.DEV && (
+    <div className="container mx-auto mt-4 flex flex-col justify-center items-center">
+      {import.meta.env.DEV !== true && (
         <>
           <h3>Letters history: {letters.map((l) => l.letter).join(", ")}</h3>
           <button
@@ -558,7 +545,7 @@ const Game = () => {
           {JSON.stringify(reverseSnake.map(({ letter }) => letter))}
         </>
       )}
-      <div ref={containerRef} className="h-auto w-auto mb-3">
+      <div className="h-auto w-auto mb-3">
         <Grid
           grid={grid}
           direction={direction}
@@ -566,72 +553,83 @@ const Game = () => {
           longestWordCoordinates={longestWordData.coordinates}
         />
       </div>
-      <div className="sm:hidden flex flex-col gap-4 items-center m-4">
-        <button
-          className="border-2 border-slate-400 p-4 w-16 h-16"
-          onClick={() =>
-            setDirection({
-              coordinates: directionsMap.arrowup,
-              direction: "arrowup",
-            })
-          }
-        >
-          &#8593;
-        </button>
-        <div className="flex flex-row justify-center gap-20">
+
+      <div className="flex flex-row items-center w-full gap-8 p-4">
+        <div className="sm:hidden flex flex-col items-center">
           <button
-            className="border-2 border-slate-400 p-4 w-16 h-16"
+            className={`bg-slate-600 p-6 w-10 h-10 ${arrowMap.down}`}
             onClick={() =>
               setDirection({
-                coordinates: directionsMap.arrowleft,
-                direction: "arrowleft",
+                coordinates: directionsMap.arrowup,
+                direction: "arrowup",
               })
             }
           >
-            &#8592;
+            &#8203;
           </button>
+          <div className="flex flex-row justify-center gap-4">
+            <button
+              className={`bg-slate-600 p-6 w-10 h-10 ${arrowMap.right}`}
+              onClick={() =>
+                setDirection({
+                  coordinates: directionsMap.arrowleft,
+                  direction: "arrowleft",
+                })
+              }
+            >
+              &#8203;
+            </button>
+            <button
+              className={`bg-slate-600 p-6 w-10 h-10 ${arrowMap.left}`}
+              onClick={() =>
+                setDirection({
+                  coordinates: directionsMap.arrowright,
+                  direction: "arrowright",
+                })
+              }
+            >
+              &#8203;
+            </button>
+          </div>
           <button
-            className="border-2 border-slate-400 p-4 w-16 h-16"
+            className={`bg-slate-600 p-6 w-10 h-10 ${arrowMap.up}`}
             onClick={() =>
               setDirection({
-                coordinates: directionsMap.arrowright,
-                direction: "arrowright",
+                coordinates: directionsMap.arrowdown,
+                direction: "arrowdown",
               })
             }
           >
-            &#8594;
+            &#8203;
           </button>
         </div>
-        <button
-          className="border-2 border-slate-400 p-4 w-16 h-16"
-          onClick={() =>
-            setDirection({
-              coordinates: directionsMap.arrowdown,
-              direction: "arrowdown",
-            })
-          }
-        >
-          &#8595;
-        </button>
+        <div>
+          {gameOver && (
+            <>
+              <h3 className="text-xl font-bold">Game Over!</h3>
+              {/* TODO add restart? */}
+            </>
+          )}
+          {longestWordData.word.length > 1 && (
+            <div className="flex gap-2 flex-col">
+              <h3 className="font-bold text-lg">Longest word: </h3>
+              <div className="flex gap-1 flex-wrap">
+                {longestWordData?.word.length &&
+                  longestWordData?.word.split("").map((letter, index) => (
+                    <div
+                      className={
+                        "w-8 h-8 capitalize flex justify-center items-center font-bold text-lg text-center relative bg-green-600"
+                      }
+                      key={`${letter}:${index}`}
+                    >
+                      {letter}
+                    </div>
+                  ))}
+              </div>
+            </div>
+          )}
+        </div>
       </div>
-      {longestWordData?.word && (
-        <>
-          <h3 className="font-bold text-lg">Longest word: </h3>
-          <div className="flex gap-1">
-            {longestWordData?.word &&
-              longestWordData.word.split("").map((letter, index) => (
-                <div
-                  className={
-                    "w-8 h-8 capitalize flex justify-center items-center font-bold text-lg text-center relative bg-green-600"
-                  }
-                  key={`${letter}:${index}`}
-                >
-                  {letter}
-                </div>
-              ))}
-          </div>
-        </>
-      )}
     </div>
   );
 };
