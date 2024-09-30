@@ -1,42 +1,10 @@
-import { useState, useEffect, useCallback } from "react";
-import "./Grid.css"; // For styling the grid cells
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 
 const GRID_SIZE = 10; // 10x10 grid for simplicity
 const ENABLE_MOVEMENT = true;
-const MAX_LETTERS_ON_GRID = 3; // Configurable number of letters to place on the grid
+const MAX_LETTERS_ON_GRID = 8; // Configurable number of letters to place on the grid
 const SNAKE_SPEED_IN_MS = 500;
-// Directions map for key presses
-const directions = {
-  arrowup: { x: 0, y: -1 },
-  arrowdown: { x: 0, y: 1 },
-  arrowleft: { x: -1, y: 0 },
-  arrowright: { x: 1, y: 0 },
-  w: { x: 0, y: -1 },
-  s: { x: 0, y: 1 },
-  a: { x: -1, y: 0 },
-  d: { x: 1, y: 0 },
-} as const satisfies { [key: string]: Coordinate };
-
-function getDirectionClass(direction: keyof typeof directions | undefined) {
-  switch (direction) {
-    case "arrowup":
-    case "w":
-      return "up";
-    case "arrowdown":
-    case "s":
-      return "down";
-    case "arrowleft":
-    case "a":
-      return "left";
-    case "arrowright":
-    case "d":
-      return "right";
-    default:
-      return "";
-  }
-}
-
 // Some random GPT-assisted weights.
 const letterWeights = {
   A: 8.17,
@@ -66,6 +34,36 @@ const letterWeights = {
   Y: 1.97,
   Z: 0.07,
 };
+// Directions map for key presses
+const directionsMap = {
+  arrowup: { x: 0, y: -1 },
+  arrowdown: { x: 0, y: 1 },
+  arrowleft: { x: -1, y: 0 },
+  arrowright: { x: 1, y: 0 },
+  w: { x: 0, y: -1 },
+  s: { x: 0, y: 1 },
+  a: { x: -1, y: 0 },
+  d: { x: 1, y: 0 },
+} as const satisfies { [key: string]: Coordinate };
+
+function getDirectionClass(direction: keyof typeof directionsMap | undefined) {
+  switch (direction) {
+    case "arrowup":
+    case "w":
+      return "up";
+    case "arrowdown":
+    case "s":
+      return "down";
+    case "arrowleft":
+    case "a":
+      return "left";
+    case "arrowright":
+    case "d":
+      return "right";
+    default:
+      return "";
+  }
+}
 
 type Coordinate = { x: number; y: number };
 
@@ -74,6 +72,32 @@ type CellType = {
   coordinates: Coordinate;
   letter?: string;
 };
+
+function useInterval(callback: () => void, delay: number | null) {
+  const savedCallback = useRef(callback);
+
+  // Remember the latest callback if it changes.
+  useEffect(() => {
+    savedCallback.current = callback;
+  }, [callback]);
+
+  // Set up the interval.
+  useEffect(() => {
+    // Don't schedule if no delay is specified.
+    // Note: 0 is a valid value for delay.
+    if (delay === null) {
+      return;
+    }
+
+    const id = setInterval(() => {
+      savedCallback.current();
+    }, delay);
+
+    return () => {
+      clearInterval(id);
+    };
+  }, [delay]);
+}
 
 // A functional component that renders the grid
 const Grid = ({
@@ -84,37 +108,45 @@ const Grid = ({
   grid: CellType[][];
   direction: {
     coordinates: Coordinate;
-    direction: keyof typeof directions | undefined;
+    direction: keyof typeof directionsMap | undefined;
   };
   snakeHead: CellType;
 }) => {
   const directionClass = getDirectionClass(direction.direction);
 
+  const cellTypeColorMap = {
+    collision: "bg-red-600",
+    empty: "bg-white",
+    letter: "bg-yellow-600",
+    snake: "bg-green-600",
+  } as { [type in CellType["type"]]: string };
+
+  const arrowMap = {
+    up: "[clip-path:polygon(0%_40%,50%_0%,100%_40%,100%_100%,0%_100%)]",
+    down: "[clip-path:polygon(0%_0%,100%_0%,100%_60%,50%_100%,0%_60%)]",
+    left: "[clip-path:polygon(40%_0%,100%_0%,100%_100%,40%_100%,0%_50%)]",
+    right: "[clip-path:polygon(0%_0%,60%_0%,100%_50%,60%_100%,0%_100%)]",
+  } as {
+    [key in typeof directionClass]: string;
+  };
+
   return (
-    <div className="grid">
+    <div className="grid grid-cols-10 grid-rows-10 gap-1 w-fit border-2 border-slate-400 p-1">
       {grid.flat().map((cell, index) => {
         const rowIndex = Math.floor(index / GRID_SIZE); // Calculate the row index
         const colIndex = index % GRID_SIZE; // Calculate the column index
         const isSnakeHead =
           rowIndex === snakeHead.coordinates.y &&
           colIndex === snakeHead.coordinates.x;
-        const cellClass =
-          cell.type === "snake" && directionClass
-            ? `pointed-${directionClass}` // Apply direction-specific class
-            : "";
+
+        const cellClass = cellTypeColorMap[grid[rowIndex][colIndex].type];
 
         return (
           <div
-            className={`cell ${cell.type} ${isSnakeHead ? cellClass : ""}`.trim()}
+            className={`border w-7 h-7 flex justify-center items-center font-bold text-lg text-center relative ${cellClass} ${isSnakeHead ? arrowMap[directionClass] : ""}`}
             key={index}
           >
-            {cell?.letter && (
-              <span
-                className={`letter ${cell.type === "snake" && isSnakeHead && directionClass ? `snake-${directionClass}` : ""}`.trim()}
-              >
-                {cell.letter}
-              </span>
-            )}
+            {cell?.letter && <span>{cell.letter}</span>}
           </div>
         );
       })}
@@ -271,14 +303,14 @@ const Game = () => {
     grid: initialGrid,
     snake: initialSnake,
     letters: initialLetters,
-  } = initializeGrid();
+  } = useMemo(() => initializeGrid(), []);
 
   const [grid, setGrid] = useState(initialGrid);
   const [snake, setSnake] = useState(initialSnake);
   const [letters, setLetters] = useState(initialLetters);
   const [direction, setDirection] = useState<{
     coordinates: Coordinate;
-    direction: keyof typeof directions | undefined;
+    direction: keyof typeof directionsMap | undefined;
   }>({
     coordinates: { x: 0, y: 0 },
     direction: undefined,
@@ -299,13 +331,22 @@ const Game = () => {
   // Function to place two new random letters after picking up one
   const placeNewLetter = useCallback(
     (updatedGrid: CellType[][]) => {
+      const remainingLetters = updatedGrid
+        .flat()
+        .filter((cell) => cell.type === "letter").length;
+
       const newLetters: CellType[] = [];
 
-      for (let i = 0; i < MAX_LETTERS_ON_GRID; i++) {
+      for (
+        let i = 0;
+        i < Math.min(MAX_LETTERS_ON_GRID - remainingLetters, remainingLetters);
+        i++
+      ) {
         const { row, col, letter } = randomLetterPlacement(updatedGrid, snake);
         if (row !== -1 && col !== -1) {
           updatedGrid[row][col].type = "letter";
           updatedGrid[row][col].letter = letter;
+
           newLetters.push({
             coordinates: { x: col, y: row },
             type: "letter",
@@ -314,7 +355,11 @@ const Game = () => {
         }
       }
 
-      setLetters(newLetters);
+      setLetters((prevLetters) => {
+        console.log("prevLetters", prevLetters);
+        return prevLetters;
+      });
+
       return updatedGrid;
     },
     [snake],
@@ -385,17 +430,23 @@ const Game = () => {
         newHead.letter = pickedLetter; // Assign the new head its letter
         growSnake = true; // Signal growth
 
-        // Clear the old letters and place new ones
-        updatedGrid.forEach((row) => {
-          row.forEach((cell) => {
-            if (cell.type === "letter") {
-              cell.type = "empty";
-              cell.letter = undefined;
-            }
-          });
-        });
+        // Only clear the picked-up letter
+        updatedGrid[newHead.coordinates.y][newHead.coordinates.x] = {
+          type: "empty",
+          letter: undefined,
+          coordinates: newHead.coordinates,
+        };
 
-        setGrid(placeNewLetter(updatedGrid)); // Place new letters
+        setGrid(placeNewLetter(updatedGrid)); // Place only as many letters as needed
+
+        const longestValidWord = findLongestValidWordAtEnd(
+          prevSnake,
+          validWordSet,
+        );
+
+        if (longestValidWord.length > 1) {
+          setLongestWord(longestValidWord);
+        }
       }
 
       // Build the new snake based on the current move
@@ -460,8 +511,8 @@ const Game = () => {
   // Update snake position on grid and handle movement
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      const key = event.key.toLowerCase() as keyof typeof directions;
-      const newDirection = directions[key];
+      const key = event.key.toLowerCase() as keyof typeof directionsMap;
+      const newDirection = directionsMap[key];
 
       if (newDirection) {
         // Prevent reversing direction
@@ -479,25 +530,75 @@ const Game = () => {
       ENABLE_MOVEMENT ? handleKeyDown : () => {},
     );
 
-    const interval = ENABLE_MOVEMENT
-      ? setInterval(() => {
-          moveSnake();
-        }, SNAKE_SPEED_IN_MS)
-      : 0;
-
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
-      clearInterval(interval);
     };
   }, [direction, moveSnake]);
 
+  useInterval(() => {
+    if (ENABLE_MOVEMENT) {
+      moveSnake();
+    }
+  }, SNAKE_SPEED_IN_MS);
+
   return (
-    <div className="container">
+    <div className="container mx-auto flex flex-col justify-center items-center">
       <h1>Snake Word Game</h1>
+
       <h2>Current snake: {gameOver ? "Game Over!" : getSnakeLetters(snake)}</h2>
       <h3>Longest word: {longestWord}</h3>
-      <h3>Letters on board: {letters.map((l) => l.letter).join(", ")}</h3>
+      {import.meta.env.DEV && (
+        <h3>Letters history: {letters.map((l) => l.letter).join(", ")}</h3>
+      )}
       <Grid grid={grid} direction={direction} snakeHead={snake[0]} />
+      <div className="flex flex-col gap-4 items-center m-4">
+        <button
+          className="border-2 border-slate-400 w-fit p-4"
+          onClick={() =>
+            setDirection({
+              coordinates: directionsMap.arrowup,
+              direction: "arrowup",
+            })
+          }
+        >
+          &#8593;
+        </button>
+        <div className="flex flex-row justify-center gap-16">
+          <button
+            className="border-2 border-slate-400 w-fit p-4"
+            onClick={() =>
+              setDirection({
+                coordinates: directionsMap.arrowleft,
+                direction: "arrowleft",
+              })
+            }
+          >
+            &#8592;
+          </button>
+          <button
+            className="border-2 border-slate-400 w-fit p-4"
+            onClick={() =>
+              setDirection({
+                coordinates: directionsMap.arrowright,
+                direction: "arrowright",
+              })
+            }
+          >
+            &#8594;
+          </button>
+        </div>
+        <button
+          className="border-2 border-slate-400 w-fit p-4"
+          onClick={() =>
+            setDirection({
+              coordinates: directionsMap.arrowdown,
+              direction: "arrowdown",
+            })
+          }
+        >
+          &#8595;
+        </button>
+      </div>
     </div>
   );
 };
