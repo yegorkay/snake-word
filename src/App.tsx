@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 
 const GRID_SIZE = 10; // 10x10 grid for simplicity
 const ENABLE_MOVEMENT = true;
-const MAX_LETTERS_ON_GRID = 8; // Configurable number of letters to place on the grid
+const MAX_LETTERS_ON_GRID = 3; // Configurable number of letters to place on the grid
 const SNAKE_SPEED_IN_MS = 500;
 // Some random GPT-assisted weights.
 const letterWeights = {
@@ -355,10 +355,7 @@ const Game = () => {
         }
       }
 
-      setLetters((prevLetters) => {
-        console.log("prevLetters", prevLetters);
-        return prevLetters;
-      });
+      setLetters((prevLetters) => [...prevLetters, ...newLetters]);
 
       return updatedGrid;
     },
@@ -500,7 +497,6 @@ const Game = () => {
       );
 
       if (longestValidWord.length > 1) {
-        console.log(`Found a valid word: ${longestValidWord}`);
         setLongestWord(longestValidWord);
       }
 
@@ -553,7 +549,7 @@ const Game = () => {
       <Grid grid={grid} direction={direction} snakeHead={snake[0]} />
       <div className="flex flex-col gap-4 items-center m-4">
         <button
-          className="border-2 border-slate-400 w-fit p-4"
+          className="border-2 border-slate-400 p-4 w-16 h-16"
           onClick={() =>
             setDirection({
               coordinates: directionsMap.arrowup,
@@ -563,9 +559,9 @@ const Game = () => {
         >
           &#8593;
         </button>
-        <div className="flex flex-row justify-center gap-16">
+        <div className="flex flex-row justify-center gap-20">
           <button
-            className="border-2 border-slate-400 w-fit p-4"
+            className="border-2 border-slate-400 p-4 w-16 h-16"
             onClick={() =>
               setDirection({
                 coordinates: directionsMap.arrowleft,
@@ -576,7 +572,7 @@ const Game = () => {
             &#8592;
           </button>
           <button
-            className="border-2 border-slate-400 w-fit p-4"
+            className="border-2 border-slate-400 p-4 w-16 h-16"
             onClick={() =>
               setDirection({
                 coordinates: directionsMap.arrowright,
@@ -588,7 +584,7 @@ const Game = () => {
           </button>
         </div>
         <button
-          className="border-2 border-slate-400 w-fit p-4"
+          className="border-2 border-slate-400 p-4 w-16 h-16"
           onClick={() =>
             setDirection({
               coordinates: directionsMap.arrowdown,
