@@ -1,5 +1,6 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useInterval } from "./use-interval";
 
 const GRID_SIZE = 10; // 10x10 grid for simplicity
 const ENABLE_MOVEMENT = true;
@@ -72,32 +73,6 @@ type CellType = {
   coordinates: Coordinate;
   letter?: string;
 };
-
-function useInterval(callback: () => void, delay: number | null) {
-  const savedCallback = useRef(callback);
-
-  // Remember the latest callback if it changes.
-  useEffect(() => {
-    savedCallback.current = callback;
-  }, [callback]);
-
-  // Set up the interval.
-  useEffect(() => {
-    // Don't schedule if no delay is specified.
-    // Note: 0 is a valid value for delay.
-    if (delay === null) {
-      return;
-    }
-
-    const id = setInterval(() => {
-      savedCallback.current();
-    }, delay);
-
-    return () => {
-      clearInterval(id);
-    };
-  }, [delay]);
-}
 
 // A functional component that renders the grid
 const Grid = ({
