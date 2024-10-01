@@ -91,12 +91,16 @@ const arrowMap = {
   [key in ReturnType<typeof getDirectionClass>]: string;
 };
 
+const FLASH_DURATION = 3000;
+const CHANGE_RANDOM_LETTER_DURATION = 1000;
+
 // A functional component that renders the grid
 const Grid = ({
   grid,
   direction,
   snake,
   longestWordCoordinates,
+  flashingLetter,
 }: {
   grid: CellType[][];
   direction: {
@@ -105,9 +109,9 @@ const Grid = ({
   };
   snake: CellType[];
   longestWordCoordinates: Coordinate[];
+  flashingLetter: CellType | null;
 }) => {
   const directionClass = getDirectionClass(direction.direction);
-
   const snakeHead = snake[0];
 
   return (
@@ -119,8 +123,8 @@ const Grid = ({
       className={"grid gap-1 w-fit border-2 border-slate-400 p-1"}
     >
       {grid.flat().map((cell, index) => {
-        const rowIndex = Math.floor(index / COLUMN_COUNT); // Calculate the row index
-        const colIndex = index % COLUMN_COUNT; // Calculate the column index
+        const rowIndex = Math.floor(index / COLUMN_COUNT);
+        const colIndex = index % COLUMN_COUNT;
         const isSnakeHead =
           rowIndex === snakeHead.coordinates.y &&
           colIndex === snakeHead.coordinates.x;
@@ -133,9 +137,18 @@ const Grid = ({
           ),
         );
 
+        const isFlashingCell =
+          flashingLetter &&
+          rowIndex === flashingLetter.coordinates.y &&
+          colIndex === flashingLetter.coordinates.x;
+
         return (
           <div
-            className={`${import.meta.env.DEV ? "border" : ""} w-8 h-8 flex justify-center items-center font-bold text-lg text-center relative ${isValidWordCell ? "bg-green-600" : cellClass} ${isSnakeHead ? arrowMap[directionClass] : ""}`.trim()}
+            className={`w-8 h-8 flex justify-center items-center font-bold text-lg text-center relative ${
+              isValidWordCell ? "bg-green-600" : cellClass
+            } ${isSnakeHead ? arrowMap[directionClass] : ""} ${
+              isFlashingCell ? "animate-pulse" : ""
+            }`.trim()}
             key={index}
           >
             {cell?.letter && <span>{cell.letter}</span>}
@@ -145,7 +158,6 @@ const Grid = ({
     </div>
   );
 };
-
 function getLettersFromSnake(snake: CellType[]) {
   const letters = snake.map((segment) => segment.letter);
   const potentialWord = letters.join("").toLowerCase();
@@ -319,6 +331,9 @@ const Game = () => {
 
   const [gameOver, setGameOver] = useState(false); // Track game over state
 
+  const [flashingLetter, setFlashingLetter] = useState<CellType | null>(null);
+  const [flashStartTime, setFlashStartTime] = useState<number | null>(null);
+
   const { data: validWordSet } = useQuery({
     queryFn: () =>
       fetch("./2of12.txt")
@@ -375,6 +390,30 @@ const Game = () => {
     },
     [snake],
   );
+
+  const selectRandomLetter = useCallback(() => {
+    if (flashingLetter) return; // Don't select a new letter if one is already flashing
+
+    setGrid((prevGrid) => {
+      const currentGrid = prevGrid.map((row) =>
+        row.map((cell) => ({ ...cell })),
+      );
+
+      const letterCells = currentGrid
+        .flat()
+        .filter((cell) => cell.type === "letter");
+
+      if (letterCells.length === 0) return currentGrid;
+
+      const randomIndex = Math.floor(Math.random() * letterCells.length);
+      const cellToChange = letterCells[randomIndex];
+
+      setFlashingLetter(cellToChange);
+      setFlashStartTime(Date.now());
+
+      return currentGrid;
+    });
+  }, [flashingLetter]);
 
   // Function to update the snake's position based on its current direction
   const moveSnake = useCallback(() => {
@@ -492,22 +531,16 @@ const Game = () => {
   }, [direction, grid, placeNewLetter, checkCollision]);
 
   const changeRandomLetter = useCallback(() => {
+    if (!flashingLetter || !flashStartTime) return;
+
+    const currentTime = Date.now();
+    if (currentTime - flashStartTime < FLASH_DURATION) return;
+
     setGrid((prevGrid) => {
-      const currentGrid = prevGrid.map((row) =>
-        row.map((cell) => ({ ...cell })),
-      );
-
-      const letterCells = currentGrid
-        .flat()
-        .filter((cell) => cell.type === "letter");
-
-      const randomIndex = Math.floor(Math.random() * letterCells.length);
-      const cellToChange = letterCells[randomIndex];
-
-      const updatedGrid = currentGrid.map((row) =>
+      const updatedGrid = prevGrid.map((row) =>
         row.map((cell) =>
-          cell.coordinates.x === cellToChange.coordinates.x &&
-          cell.coordinates.y === cellToChange.coordinates.y
+          cell.coordinates.x === flashingLetter.coordinates.x &&
+          cell.coordinates.y === flashingLetter.coordinates.y
             ? {
                 ...cell,
                 letter: getRandomWeightedLetter(),
@@ -518,20 +551,23 @@ const Game = () => {
 
       setLetters((prevLetters) => {
         return prevLetters.map((letter) =>
-          letter.coordinates.x === cellToChange.coordinates.x &&
-          letter.coordinates.y === cellToChange.coordinates.y
+          letter.coordinates.x === flashingLetter.coordinates.x &&
+          letter.coordinates.y === flashingLetter.coordinates.y
             ? {
-                ...updatedGrid[cellToChange.coordinates.y][
-                  cellToChange.coordinates.x
+                ...updatedGrid[flashingLetter.coordinates.y][
+                  flashingLetter.coordinates.x
                 ],
               }
             : letter,
         );
       });
 
+      setFlashingLetter(null);
+      setFlashStartTime(null);
+
       return updatedGrid;
     });
-  }, []);
+  }, [flashingLetter, flashStartTime]);
 
   // Update snake position on grid and handle movement
   useEffect(() => {
@@ -572,8 +608,21 @@ const Game = () => {
   );
 
   useInterval(
-    () => changeRandomLetter(),
-    !gameOver && enableMovement ? 3000 : null,
+    () => selectRandomLetter(),
+    !gameOver && enableMovement
+      ? FLASH_DURATION + CHANGE_RANDOM_LETTER_DURATION
+      : null, // Select a new letter every 4 seconds
+  );
+
+  useInterval(
+    () => {
+      if (!gameOver && enableMovement && flashingLetter) {
+        changeRandomLetter();
+      }
+    },
+    !gameOver && enableMovement && flashingLetter
+      ? CHANGE_RANDOM_LETTER_DURATION
+      : null,
   );
 
   useInterval(
@@ -605,6 +654,7 @@ const Game = () => {
           direction={direction}
           snake={snake}
           longestWordCoordinates={longestWordData.coordinates}
+          flashingLetter={flashingLetter}
         />
       </div>
 
