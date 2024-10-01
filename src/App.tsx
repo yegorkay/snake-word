@@ -120,7 +120,7 @@ const Grid = ({
         gridTemplateColumns: `repeat(${COLUMN_COUNT}, 1fr)`,
         gridTemplateRows: `repeat(${ROW_COUNT}, 1fr)`,
       }}
-      className={"grid gap-1 w-fit border-2 border-slate-400 p-1"}
+      className={"border-slate-400 border-2 grid gap-1 w-full max-w-sm p-1"}
     >
       {grid.flat().map((cell, index) => {
         const rowIndex = Math.floor(index / COLUMN_COUNT);
@@ -144,11 +144,7 @@ const Grid = ({
 
         return (
           <div
-            className={`w-8 h-8 flex justify-center items-center font-bold text-lg text-center relative ${
-              isValidWordCell ? "bg-green-600" : cellClass
-            } ${isSnakeHead ? arrowMap[directionClass] : ""} ${
-              isFlashingCell ? "animate-pulse" : ""
-            }`.trim()}
+            className={`relative aspect-square flex justify-center items-center font-bold text-lg text-center ${isValidWordCell ? "bg-green-600" : cellClass} ${isSnakeHead ? arrowMap[directionClass] : ""} ${isFlashingCell ? "animate-pulse" : ""}`.trim()}
             key={index}
           >
             {cell?.letter && <span>{cell.letter}</span>}
@@ -158,6 +154,7 @@ const Grid = ({
     </div>
   );
 };
+
 function getLettersFromSnake(snake: CellType[]) {
   const letters = snake.map((segment) => segment.letter);
   const potentialWord = letters.join("").toLowerCase();
@@ -635,9 +632,9 @@ const Game = () => {
   );
 
   return (
-    <div className="container mx-auto mt-4 flex flex-col justify-center items-center">
+    <div className="p-4 flex flex-col justify-center items-center">
       {import.meta.env.DEV && (
-        <>
+        <div className="sm:flex hidden flex-col items-center">
           <h3>Letters history: {letters.map((l) => l.letter).join(", ")}</h3>
           <button
             className="border-2 border-slate-600 p-2 m-2"
@@ -645,19 +642,16 @@ const Game = () => {
           >
             Toggle Movement: {JSON.stringify(enableMovement)}
           </button>
-          {JSON.stringify(reverseSnake.map(({ letter }) => letter))}
-        </>
+          Snake: {JSON.stringify(reverseSnake.map(({ letter }) => letter))}
+        </div>
       )}
-      <div className="h-auto w-auto mb-3">
-        <Grid
-          grid={grid}
-          direction={direction}
-          snake={snake}
-          longestWordCoordinates={longestWordData.coordinates}
-          flashingLetter={flashingLetter}
-        />
-      </div>
-
+      <Grid
+        grid={grid}
+        direction={direction}
+        snake={snake}
+        longestWordCoordinates={longestWordData.coordinates}
+        flashingLetter={flashingLetter}
+      />
       <div className="flex flex-row items-center w-full gap-8 p-4">
         <div className="sm:hidden flex flex-col items-center">
           <button
