@@ -491,6 +491,48 @@ const Game = () => {
     });
   }, [direction, grid, placeNewLetter, checkCollision]);
 
+  const changeRandomLetter = useCallback(() => {
+    setGrid((prevGrid) => {
+      const currentGrid = prevGrid.map((row) =>
+        row.map((cell) => ({ ...cell })),
+      );
+
+      const letterCells = currentGrid
+        .flat()
+        .filter((cell) => cell.type === "letter");
+
+      const randomIndex = Math.floor(Math.random() * letterCells.length);
+      const cellToChange = letterCells[randomIndex];
+
+      const updatedGrid = currentGrid.map((row) =>
+        row.map((cell) =>
+          cell.coordinates.x === cellToChange.coordinates.x &&
+          cell.coordinates.y === cellToChange.coordinates.y
+            ? {
+                ...cell,
+                letter: getRandomWeightedLetter(),
+              }
+            : cell,
+        ),
+      );
+
+      setLetters((prevLetters) => {
+        return prevLetters.map((letter) =>
+          letter.coordinates.x === cellToChange.coordinates.x &&
+          letter.coordinates.y === cellToChange.coordinates.y
+            ? {
+                ...updatedGrid[cellToChange.coordinates.y][
+                  cellToChange.coordinates.x
+                ],
+              }
+            : letter,
+        );
+      });
+
+      return updatedGrid;
+    });
+  }, []);
+
   // Update snake position on grid and handle movement
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -527,6 +569,11 @@ const Game = () => {
   const longestWordData = useMemo(
     () => findLongestValidWordAtEnd(reverseSnake, validWordSet),
     [validWordSet, reverseSnake],
+  );
+
+  useInterval(
+    () => changeRandomLetter(),
+    !gameOver && enableMovement ? 3000 : null,
   );
 
   useInterval(
