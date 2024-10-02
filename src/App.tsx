@@ -668,7 +668,10 @@ const Game = () => {
   );
 
   return (
-    <div {...handlers} className="p-4 flex flex-col items-start h-svh">
+    <div
+      {...handlers}
+      className="p-4 flex flex-col items-start sm:items-center h-svh"
+    >
       {import.meta.env.DEV && (
         <div className="sm:flex hidden flex-col items-center">
           <h3>Letters history: {letters.map((l) => l.letter).join(", ")}</h3>
