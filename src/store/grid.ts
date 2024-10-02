@@ -5,6 +5,7 @@ import { gameConfig } from "@/config";
 import { instantiateGrid } from "@/utils/instantiate-grid";
 import { randomLetterPlacement } from "@/utils/random-letter-placement";
 import { getRandomWeightedLetter } from "@/utils/get-random-weighted-letter";
+import { getDirection } from "@/utils/get-direction";
 
 type GridState = {
   grid: CellType[][];
@@ -27,7 +28,9 @@ type GridActions = {
   setSnake: (snake: CellType[]) => void;
   setLetters: (letters: CellType[]) => void;
   toggleEnableMovement: () => void;
-  setDirection: (direction: GridState["direction"]) => void;
+  setDirection: (
+    directionKey: keyof typeof gameConfig.directionsMap | undefined,
+  ) => void;
   setGameOver: (gameOver: boolean) => void;
   setIsTutorialOpen: (isOpen: boolean) => void;
   setFlashingLetter: (letter: CellType | null) => void;
@@ -53,26 +56,67 @@ const checkCollision = (newHead: CellType, snake: CellType[]) => {
 
 export const useGridStore = create<GridState & GridActions>()(
   immer((set, get) => ({
-    grid: [] as CellType[][],
-    snake: [] as CellType[],
-    letters: [] as CellType[],
-    enableMovement: true,
+    grid: [] as GridState["grid"],
+    snake: [] as GridState["snake"],
+    letters: [] as GridState["letters"],
+    enableMovement: true as GridState["enableMovement"],
     direction: {
       coordinates: { x: 0, y: 0 },
       direction: undefined,
     } as GridState["direction"],
-    flashingLetter: null,
-    flashStartTime: null,
-    snakeSpeed: gameConfig.SNAKE_SPEED_IN_MS,
-    gameOver: false,
-    isTutorialOpen: true,
+    flashingLetter: null as GridState["flashingLetter"],
+    flashStartTime: null as GridState["flashStartTime"],
+    snakeSpeed: gameConfig.SNAKE_SPEED_IN_MS as GridState["snakeSpeed"],
+    gameOver: false as GridState["gameOver"],
+    isTutorialOpen: true as GridState["isTutorialOpen"],
 
     setGrid: (grid) => set({ grid }),
     setSnake: (snake) => set({ snake }),
     setLetters: (letters) => set({ letters }),
     toggleEnableMovement: () =>
       set((state) => ({ enableMovement: !state.enableMovement })),
-    setDirection: (direction) => set({ direction }),
+    setDirection: (key) => {
+      if (key === undefined) {
+        set({
+          direction: {
+            coordinates: { x: 0, y: 0 },
+            direction: undefined,
+          },
+        });
+      }
+
+      const direction = getDirection(key);
+
+      if (direction === "left") {
+        set({
+          direction: {
+            coordinates: gameConfig.directionsMap.arrowleft,
+            direction: "arrowleft",
+          },
+        });
+      } else if (direction === "right") {
+        set({
+          direction: {
+            coordinates: gameConfig.directionsMap.arrowright,
+            direction: "arrowright",
+          },
+        });
+      } else if (direction === "up") {
+        set({
+          direction: {
+            coordinates: gameConfig.directionsMap.arrowup,
+            direction: "arrowup",
+          },
+        });
+      } else if (direction === "down") {
+        set({
+          direction: {
+            coordinates: gameConfig.directionsMap.arrowdown,
+            direction: "arrowdown",
+          },
+        });
+      }
+    },
     setGameOver: (gameOver) => set({ gameOver }),
     setIsTutorialOpen: (isOpen) => set({ isTutorialOpen: isOpen }),
     setFlashingLetter: (letter) => set({ flashingLetter: letter }),
@@ -212,14 +256,13 @@ export const useGridStore = create<GridState & GridActions>()(
       ) {
         const { row, col, letter } = randomLetterPlacement(updatedGrid, snake);
         if (row !== -1 && col !== -1) {
-          updatedGrid[row][col].type = "letter";
-          updatedGrid[row][col].letter = letter;
-
-          newLetters.push({
-            coordinates: { x: col, y: row },
+          updatedGrid[row][col] = {
             type: "letter",
-            letter,
-          });
+            letter: letter,
+            coordinates: { x: col, y: row },
+          } satisfies CellType;
+
+          newLetters.push(updatedGrid[row][col]);
         }
       }
 
@@ -234,12 +277,7 @@ export const useGridStore = create<GridState & GridActions>()(
       if (flashingLetter) return;
 
       set((state) => {
-        const currentGrid = state.grid.map((row) =>
-          row.map((cell) => ({ ...cell })),
-        );
-        const letterCells = currentGrid
-          .flat()
-          .filter((cell) => cell.type === "letter");
+        const letterCells = state.letters;
 
         if (letterCells.length === 0) return;
 
@@ -248,7 +286,6 @@ export const useGridStore = create<GridState & GridActions>()(
 
         state.flashingLetter = cellToChange;
         state.flashStartTime = Date.now();
-        state.grid = currentGrid;
       });
     },
 
@@ -260,13 +297,15 @@ export const useGridStore = create<GridState & GridActions>()(
       if (currentTime - flashStartTime < gameConfig.FLASH_DURATION) return;
 
       set((state) => {
-        const updatedGrid = state.grid.map((row) =>
+        const newLetter = getRandomWeightedLetter();
+
+        state.grid = state.grid.map((row) =>
           row.map((cell) =>
             cell.coordinates.x === flashingLetter.coordinates.x &&
             cell.coordinates.y === flashingLetter.coordinates.y
               ? {
                   ...cell,
-                  letter: getRandomWeightedLetter(),
+                  letter: newLetter,
                 }
               : cell,
           ),
@@ -276,16 +315,14 @@ export const useGridStore = create<GridState & GridActions>()(
           letter.coordinates.x === flashingLetter.coordinates.x &&
           letter.coordinates.y === flashingLetter.coordinates.y
             ? {
-                ...updatedGrid[flashingLetter.coordinates.y][
-                  flashingLetter.coordinates.x
-                ],
+                ...letter,
+                letter: newLetter,
               }
             : letter,
         );
 
         state.flashingLetter = null;
         state.flashStartTime = null;
-        state.grid = updatedGrid;
       });
     },
   })),

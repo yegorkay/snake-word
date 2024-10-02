@@ -14,27 +14,7 @@ import { gameConfig } from "@/config";
 import { useGridStore } from "@/store/grid";
 import type { CellType } from "@/types";
 import { findLongestValidWordAtEnd } from "@/utils/find-longest-valid-word";
-
-function getDirectionClass(
-  direction: keyof typeof gameConfig.directionsMap | undefined,
-) {
-  switch (direction) {
-    case "arrowup":
-    case "w":
-      return "up";
-    case "arrowdown":
-    case "s":
-      return "down";
-    case "arrowleft":
-    case "a":
-      return "left";
-    case "arrowright":
-    case "d":
-      return "right";
-    default:
-      return "";
-  }
-}
+import { getDirection } from "@/utils/get-direction";
 
 const cellTypeColorMap = {
   collision: "bg-red-600",
@@ -49,27 +29,18 @@ const arrowMap = {
   left: "[clip-path:polygon(40%_0%,100%_0%,100%_100%,40%_100%,0%_50%)]",
   right: "[clip-path:polygon(0%_0%,60%_0%,100%_50%,60%_100%,0%_100%)]",
 } as {
-  [key in ReturnType<typeof getDirectionClass>]: string;
+  [key in ReturnType<typeof getDirection>]: string;
 };
 
 // A functional component that renders the grid
 const Grid = ({
-  grid,
-  direction,
-  snake,
   longestWordCoordinates,
-  flashingLetter,
 }: {
-  grid: CellType[][];
-  direction: {
-    coordinates: CellType["coordinates"];
-    direction: keyof typeof gameConfig.directionsMap | undefined;
-  };
-  snake: CellType[];
   longestWordCoordinates: CellType["coordinates"][];
-  flashingLetter: CellType | null;
 }) => {
-  const directionClass = getDirectionClass(direction.direction);
+  const { grid, snake, direction, flashingLetter } = useGridStore();
+
+  const directionClass = getDirection(direction.direction);
   const snakeHead = snake[0];
 
   return (
@@ -115,7 +86,6 @@ const Grid = ({
 
 const Game = () => {
   const {
-    grid,
     snake,
     direction,
     gameOver,
@@ -139,29 +109,7 @@ const Game = () => {
   }, [initializeGrid]);
 
   const handlers = useSwipeable({
-    onSwiped: (eventData) => {
-      if (eventData.dir === "Left") {
-        setDirection({
-          coordinates: gameConfig.directionsMap.arrowleft,
-          direction: "arrowleft",
-        });
-      } else if (eventData.dir === "Right") {
-        setDirection({
-          coordinates: gameConfig.directionsMap.arrowright,
-          direction: "arrowright",
-        });
-      } else if (eventData.dir === "Up") {
-        setDirection({
-          coordinates: gameConfig.directionsMap.arrowup,
-          direction: "arrowup",
-        });
-      } else if (eventData.dir === "Down") {
-        setDirection({
-          coordinates: gameConfig.directionsMap.arrowdown,
-          direction: "arrowdown",
-        });
-      }
-    },
+    onSwiped: (eventData) => setDirection(eventData.dir),
   });
 
   const { data: validWordSet } = useQuery({
@@ -186,7 +134,7 @@ const Game = () => {
           (direction.coordinates.x === 0 && newDirection.x !== 0) ||
           (direction.coordinates.y === 0 && newDirection.y !== 0)
         ) {
-          setDirection({ coordinates: newDirection, direction: key });
+          setDirection(key);
         }
       }
     };
@@ -256,13 +204,7 @@ const Game = () => {
           Snake: {JSON.stringify(reverseSnake.map(({ letter }) => letter))}
         </div>
       )}
-      <Grid
-        grid={grid}
-        direction={direction}
-        snake={snake}
-        longestWordCoordinates={longestWordData.coordinates}
-        flashingLetter={flashingLetter}
-      />
+      <Grid longestWordCoordinates={longestWordData.coordinates} />
 
       <div className="flex gap-4 justify-center items-center w-full my-4 flex-col">
         <h3 className="text-xl font-extrabold">Longest word:</h3>
@@ -329,10 +271,7 @@ const Game = () => {
               onClick={() => {
                 initializeGrid();
                 setGameOver(false);
-                setDirection({
-                  coordinates: { x: 0, y: 0 },
-                  direction: undefined,
-                });
+                setDirection(undefined);
               }}
             >
               Play Again?

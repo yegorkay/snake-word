@@ -44,6 +44,10 @@ const directionsMap = {
   s: { x: 0, y: 1 },
   a: { x: -1, y: 0 },
   d: { x: 1, y: 0 },
+  Up: { x: 0, y: -1 },
+  Down: { x: 0, y: 1 },
+  Left: { x: -1, y: 0 },
+  Right: { x: 1, y: 0 },
 } as const satisfies { [key: string]: CellType["coordinates"] };
 
 const FLASH_DURATION = 3000;
