@@ -692,6 +692,24 @@ const Game = () => {
         flashingLetter={flashingLetter}
       />
 
+      <div className="flex gap-4 justify-center items-center w-full my-4 flex-col">
+        <h3 className="text-xl font-extrabold">Longest word:</h3>
+        {longestWordData.word.length > 1 && (
+          <div className="flex gap-1 flex-wrap">
+            {longestWordData.word.split("").map((letter) => (
+              <div
+                key={`${letter}:max`}
+                className={
+                  "h-9 w-9 capitalize relative aspect-square flex justify-center items-center font-bold text-lg text-center bg-green-600"
+                }
+              >
+                {letter}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
       <Dialog
         open={isTutorialOpen}
         onOpenChange={() => setIsTutorialOpen((isOpen) => !isOpen)}
@@ -719,8 +737,21 @@ const Game = () => {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Game Over!</DialogTitle>
-            <DialogDescription>
-              Longest word: {longestWordData.word}
+            <DialogDescription className="flex justify-center">
+              {longestWordData.word.length > 1 && (
+                <div className="flex gap-1 flex-wrap">
+                  {longestWordData.word.split("").map((letter) => (
+                    <div
+                      key={`${letter}:max`}
+                      className={
+                        "h-9 w-9 capitalize text-slate-900 relative aspect-square flex justify-center items-center font-bold text-lg text-center bg-green-600"
+                      }
+                    >
+                      {letter}
+                    </div>
+                  ))}
+                </div>
+              )}
             </DialogDescription>
             <Button onClick={() => alert("Need to do")}>Play Again?</Button>
           </DialogHeader>
