@@ -1,6 +1,15 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useInterval } from "./use-interval";
+import { useSwipeable } from "react-swipeable";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 
 const ROW_COUNT = 16;
 const COLUMN_COUNT = 10;
@@ -327,9 +336,36 @@ const Game = () => {
   }); // Current direction of movement
 
   const [gameOver, setGameOver] = useState(false); // Track game over state
+  const [isTutorialOpen, setIsTutorialOpen] = useState(true);
 
   const [flashingLetter, setFlashingLetter] = useState<CellType | null>(null);
   const [flashStartTime, setFlashStartTime] = useState<number | null>(null);
+
+  const handlers = useSwipeable({
+    onSwiped: (eventData) => {
+      if (eventData.dir === "Left") {
+        setDirection({
+          coordinates: directionsMap.arrowleft,
+          direction: "arrowleft",
+        });
+      } else if (eventData.dir === "Right") {
+        setDirection({
+          coordinates: directionsMap.arrowright,
+          direction: "arrowright",
+        });
+      } else if (eventData.dir === "Up") {
+        setDirection({
+          coordinates: directionsMap.arrowup,
+          direction: "arrowup",
+        });
+      } else if (eventData.dir === "Down") {
+        setDirection({
+          coordinates: directionsMap.arrowdown,
+          direction: "arrowdown",
+        });
+      }
+    },
+  });
 
   const { data: validWordSet } = useQuery({
     queryFn: () =>
@@ -632,7 +668,7 @@ const Game = () => {
   );
 
   return (
-    <div className="p-4 flex flex-col justify-center items-center">
+    <div {...handlers} className="p-4 flex flex-col items-start h-svh">
       {import.meta.env.DEV && (
         <div className="sm:flex hidden flex-col items-center">
           <h3>Letters history: {letters.map((l) => l.letter).join(", ")}</h3>
@@ -652,82 +688,41 @@ const Game = () => {
         longestWordCoordinates={longestWordData.coordinates}
         flashingLetter={flashingLetter}
       />
-      <div className="flex flex-row items-center w-full gap-8 p-4">
-        <div className="sm:hidden flex flex-col items-center">
-          <button
-            className={`bg-slate-600 p-6 w-10 h-10 ${arrowMap.down}`}
-            onClick={() =>
-              setDirection({
-                coordinates: directionsMap.arrowup,
-                direction: "arrowup",
-              })
-            }
-          >
-            &#8203;
-          </button>
-          <div className="flex flex-row justify-center gap-4">
-            <button
-              className={`bg-slate-600 p-6 w-10 h-10 ${arrowMap.right}`}
-              onClick={() =>
-                setDirection({
-                  coordinates: directionsMap.arrowleft,
-                  direction: "arrowleft",
-                })
-              }
-            >
-              &#8203;
-            </button>
-            <button
-              className={`bg-slate-600 p-6 w-10 h-10 ${arrowMap.left}`}
-              onClick={() =>
-                setDirection({
-                  coordinates: directionsMap.arrowright,
-                  direction: "arrowright",
-                })
-              }
-            >
-              &#8203;
-            </button>
-          </div>
-          <button
-            className={`bg-slate-600 p-6 w-10 h-10 ${arrowMap.up}`}
-            onClick={() =>
-              setDirection({
-                coordinates: directionsMap.arrowdown,
-                direction: "arrowdown",
-              })
-            }
-          >
-            &#8203;
-          </button>
-        </div>
-        <div>
-          {gameOver && (
-            <>
-              <h3 className="text-xl font-bold">Game Over!</h3>
-              {/* TODO add restart? */}
-            </>
-          )}
-          {longestWordData.word.length > 1 && (
-            <div className="flex gap-2 flex-col">
-              <h3 className="font-bold text-lg">Longest word: </h3>
-              <div className="flex gap-1 flex-wrap">
-                {longestWordData?.word.length &&
-                  longestWordData?.word.split("").map((letter, index) => (
-                    <div
-                      className={
-                        "w-8 h-8 capitalize flex justify-center items-center font-bold text-lg text-center relative bg-green-600"
-                      }
-                      key={`${letter}:${index}`}
-                    >
-                      {letter}
-                    </div>
-                  ))}
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
+
+      <Dialog
+        open={isTutorialOpen}
+        onOpenChange={() => setIsTutorialOpen((isOpen) => !isOpen)}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Snakes & Letters - Tutorial</DialogTitle>
+            <DialogDescription className="sm:hidden block">
+              Insert goal of the game text.
+            </DialogDescription>
+            <DialogDescription className="sm:hidden block">
+              <strong>Mobile controls:</strong> Swipe anywhere on the screen in
+              the direction you want the snake to go! Swipe left to go left, and
+              so on.
+            </DialogDescription>
+            <DialogDescription className="sm:block hidden">
+              <strong>Desktop controls:</strong> Arrow keys or WASD.
+            </DialogDescription>
+            <Button onClick={() => setIsTutorialOpen(false)}>Play</Button>
+          </DialogHeader>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={gameOver}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Game Over!</DialogTitle>
+            <DialogDescription>
+              Longest word: {longestWordData.word}
+            </DialogDescription>
+            <Button onClick={() => alert("Need to do")}>Play Again?</Button>
+          </DialogHeader>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
