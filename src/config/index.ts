@@ -50,9 +50,6 @@ const directionsMap = {
   Right: { x: 1, y: 0 },
 } as const satisfies { [key: string]: CellType["coordinates"] };
 
-const FLASH_DURATION = 5000;
-const CHANGE_RANDOM_LETTER_DURATION = FLASH_DURATION;
-
 // time remaining if the user pause the shake
 const TIME_REMAINING = 30_000;
 
@@ -63,7 +60,5 @@ export const gameConfig = {
   SNAKE_SPEED_IN_MS,
   letterWeights,
   directionsMap,
-  FLASH_DURATION,
   TIME_REMAINING,
-  CHANGE_RANDOM_LETTER_DURATION,
 };

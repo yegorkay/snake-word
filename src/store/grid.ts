@@ -4,7 +4,6 @@ import { immer } from "zustand/middleware/immer";
 import { gameConfig } from "@/config";
 import { instantiateGrid } from "@/utils/instantiate-grid";
 import { randomLetterPlacement } from "@/utils/random-letter-placement";
-import { getRandomWeightedLetter } from "@/utils/get-random-weighted-letter";
 import { getDirection } from "@/utils/get-direction";
 
 // TODO anytime a new letter flashes it sits in empty slot
@@ -20,8 +19,6 @@ type GridState = {
   };
   gameOver: boolean;
   isTutorialOpen: boolean;
-  flashingLetter: CellType | null;
-  flashStartTime: number | null;
   snakeSpeed: number;
   timeRemaining: number;
 };
@@ -36,14 +33,10 @@ type GridActions = {
   ) => void;
   setGameOver: (gameOver: boolean) => void;
   setIsTutorialOpen: (isOpen: boolean) => void;
-  setFlashingLetter: (letter: CellType | null) => void;
-  setFlashStartTime: (time: number | null) => void;
   setSnakeSpeed: (speed: number) => void;
   initializeGrid: () => void;
   moveSnake: () => void;
   placeNewLetter: (updatedGrid: CellType[][]) => void;
-  selectRandomLetter: () => void;
-  changeRandomLetter: () => void;
   setTimeRemaining: (time: GridState["timeRemaining"]) => void;
 };
 
@@ -68,8 +61,6 @@ export const useGridStore = create<GridState & GridActions>()(
       coordinates: { x: 0, y: 0 },
       direction: undefined,
     } as GridState["direction"],
-    flashingLetter: null as GridState["flashingLetter"],
-    flashStartTime: null as GridState["flashStartTime"],
     snakeSpeed: gameConfig.SNAKE_SPEED_IN_MS as GridState["snakeSpeed"],
     gameOver: false as GridState["gameOver"],
     isTutorialOpen: true as GridState["isTutorialOpen"],
@@ -132,8 +123,6 @@ export const useGridStore = create<GridState & GridActions>()(
     },
     setGameOver: (gameOver) => set({ gameOver }),
     setIsTutorialOpen: (isOpen) => set({ isTutorialOpen: isOpen }),
-    setFlashingLetter: (letter) => set({ flashingLetter: letter }),
-    setFlashStartTime: (time) => set({ flashStartTime: time }),
     setSnakeSpeed: (speed) => set({ snakeSpeed: speed }),
 
     initializeGrid: () => {
@@ -279,60 +268,6 @@ export const useGridStore = create<GridState & GridActions>()(
       set((state) => {
         state.letters = [...state.letters, ...newLetters];
         state.grid = updatedGrid;
-      });
-    },
-
-    selectRandomLetter: () => {
-      const { flashingLetter } = get();
-      if (flashingLetter) return;
-
-      set((state) => {
-        const letterCells = state.letters;
-
-        if (letterCells.length === 0) return;
-
-        const randomIndex = Math.floor(Math.random() * letterCells.length);
-        const cellToChange = letterCells[randomIndex];
-
-        state.flashingLetter = cellToChange;
-        state.flashStartTime = Date.now();
-      });
-    },
-
-    changeRandomLetter: () => {
-      const { flashingLetter, flashStartTime } = get();
-      if (!flashingLetter || !flashStartTime) return;
-
-      const currentTime = Date.now();
-      if (currentTime - flashStartTime < gameConfig.FLASH_DURATION) return;
-
-      set((state) => {
-        const newLetter = getRandomWeightedLetter();
-
-        state.grid = state.grid.map((row) =>
-          row.map((cell) =>
-            cell.coordinates.x === flashingLetter.coordinates.x &&
-            cell.coordinates.y === flashingLetter.coordinates.y
-              ? {
-                  ...cell,
-                  letter: newLetter,
-                }
-              : cell,
-          ),
-        );
-
-        state.letters = state.letters.map((letter) =>
-          letter.coordinates.x === flashingLetter.coordinates.x &&
-          letter.coordinates.y === flashingLetter.coordinates.y
-            ? {
-                ...letter,
-                letter: newLetter,
-              }
-            : letter,
-        );
-
-        state.flashingLetter = null;
-        state.flashStartTime = null;
       });
     },
   })),

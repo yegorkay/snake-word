@@ -36,7 +36,7 @@ const arrowMap = {
 
 // A functional component that renders the grid
 const Grid = () => {
-  const { grid, snake, direction, flashingLetter } = useGridStore();
+  const { grid, snake, direction } = useGridStore();
 
   const directionClass = getDirection(direction.direction);
   const snakeHead = snake[0];
@@ -58,20 +58,15 @@ const Grid = () => {
 
         const cellClass = cellTypeColorMap[grid[rowIndex][colIndex].type];
 
-        const isValidWordCell = false;
-
-        const isFlashingCell = Boolean(
-          flashingLetter &&
-            rowIndex === flashingLetter.coordinates.y &&
-            colIndex === flashingLetter.coordinates.x,
-        );
-
         return (
           <div
-            className={`relative aspect-square flex justify-center items-center font-bold text-lg text-center ${isValidWordCell ? "bg-green-600" : cellClass} ${isSnakeHead ? arrowMap[directionClass] : ""} ${isFlashingCell ? "animate-pulse" : ""}`.trim()}
+            className={`${cellClass} rounded-lg relative aspect-square flex justify-center items-center font-bold text-lg text-center ${isSnakeHead ? arrowMap[directionClass] : ""}`.trim()}
             key={index}
           >
-            {cell?.letter && <span>{cell.letter}</span>}
+            {/* A hack for the game state sometimes rendering a letter on empty tile */}
+            {cell?.letter && cell?.type !== "empty" && (
+              <span>{cell.letter}</span>
+            )}
           </div>
         );
       })}
@@ -85,7 +80,6 @@ const Game = () => {
     direction,
     gameOver,
     isTutorialOpen,
-    flashingLetter,
     enableMovement,
     snakeSpeed,
     initializeGrid,
@@ -93,8 +87,6 @@ const Game = () => {
     setIsTutorialOpen,
     toggleEnableMovement,
     moveSnake,
-    selectRandomLetter,
-    changeRandomLetter,
     setGameOver,
     setSnakeSpeed,
     setTimeRemaining,
@@ -164,24 +156,6 @@ const Game = () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
   }, [direction, moveSnake, enableMovement, gameOver, setDirection]);
-
-  useInterval(
-    () => selectRandomLetter(),
-    !gameOver && enableMovement
-      ? gameConfig.FLASH_DURATION + gameConfig.CHANGE_RANDOM_LETTER_DURATION
-      : null, // Select a new letter every 4 seconds
-  );
-
-  useInterval(
-    () => {
-      if (!gameOver && enableMovement && flashingLetter) {
-        changeRandomLetter();
-      }
-    },
-    !gameOver && enableMovement && flashingLetter
-      ? gameConfig.CHANGE_RANDOM_LETTER_DURATION
-      : null,
-  );
 
   useInterval(
     () => {

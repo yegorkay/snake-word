@@ -9,7 +9,8 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "prettier": "npx prettier . --write",
-    "prettier-watch": "onchange \"**/*\" -- prettier --write --ignore-unknown {{changed}}"
+    "prettier-watch": "onchange \"**/*\" -- prettier --write --ignore-unknown {{changed}}",
+    "check-types": "tsc --noEmit"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.2",
