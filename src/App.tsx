@@ -13,8 +13,9 @@ import { Button } from "@/components/ui/button";
 import { gameConfig } from "@/config";
 import { useGridStore } from "@/store/grid";
 import type { CellType } from "@/types";
-import { findLongestValidWordAtEnd } from "@/utils/find-longest-valid-word";
+import { findAllValidWords } from "@/utils/find-all-valid-words";
 import { getDirection } from "@/utils/get-direction";
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 
 const cellTypeColorMap = {
   collision: "bg-red-600",
@@ -32,12 +33,40 @@ const arrowMap = {
   [key in ReturnType<typeof getDirection>]: string;
 };
 
-// A functional component that renders the grid
-const Grid = ({
-  longestWordCoordinates,
+const FoundWordsList = ({
+  validWordsData,
 }: {
-  longestWordCoordinates: CellType["coordinates"][];
+  validWordsData: ReturnType<typeof findAllValidWords>;
 }) => {
+  const foundWords = validWordsData.words;
+
+  return (
+    <div className="w-full my-2 flex flex-col gap-2">
+      <h3 className="text-xl font-extrabold text-center">
+        Score: {validWordsData.totalScore}
+      </h3>
+
+      {foundWords.length > 0 && (
+        <ScrollArea className="whitespace-nowrap rounded-md border">
+          <ul className="flex w-max space-x-4 p-4">
+            {foundWords.map((wordObj, index) => (
+              <li key={index} className="p-1">
+                <span className="font-medium">{wordObj.word}</span>
+                <span className="text-sm text-gray-500 ml-2">
+                  ({wordObj.score})
+                </span>
+              </li>
+            ))}
+          </ul>
+          <ScrollBar orientation="horizontal" />
+        </ScrollArea>
+      )}
+    </div>
+  );
+};
+
+// A functional component that renders the grid
+const Grid = () => {
   const { grid, snake, direction, flashingLetter } = useGridStore();
 
   const directionClass = getDirection(direction.direction);
@@ -60,16 +89,13 @@ const Grid = ({
 
         const cellClass = cellTypeColorMap[grid[rowIndex][colIndex].type];
 
-        const isValidWordCell = Boolean(
-          longestWordCoordinates.find(
-            (coords) => rowIndex === coords.y && colIndex === coords.x,
-          ),
-        );
+        const isValidWordCell = false;
 
-        const isFlashingCell =
+        const isFlashingCell = Boolean(
           flashingLetter &&
-          rowIndex === flashingLetter.coordinates.y &&
-          colIndex === flashingLetter.coordinates.x;
+            rowIndex === flashingLetter.coordinates.y &&
+            colIndex === flashingLetter.coordinates.x,
+        );
 
         return (
           <div
@@ -102,11 +128,8 @@ const Game = () => {
     changeRandomLetter,
     letters,
     setGameOver,
+    setSnakeSpeed,
   } = useGridStore();
-
-  useEffect(() => {
-    initializeGrid();
-  }, [initializeGrid]);
 
   const handlers = useSwipeable({
     onSwiped: (eventData) => setDirection(eventData.dir),
@@ -120,6 +143,21 @@ const Game = () => {
     queryKey: ["words"],
     staleTime: Infinity,
   });
+
+  const reverseSnake = useMemo(() => [...snake].slice().reverse(), [snake]);
+
+  const foundWords = useMemo(
+    () => findAllValidWords(reverseSnake, validWordSet),
+    [validWordSet, reverseSnake],
+  );
+
+  useEffect(() => {
+    initializeGrid();
+  }, [initializeGrid]);
+
+  useEffect(() => {
+    setSnakeSpeed(gameConfig.SNAKE_SPEED_IN_MS + foundWords.words.length * 10);
+  }, [setSnakeSpeed, foundWords]);
 
   // Update snake position on grid and handle movement
   useEffect(() => {
@@ -152,13 +190,6 @@ const Game = () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
   }, [direction, moveSnake, enableMovement, gameOver, setDirection]);
-
-  const reverseSnake = useMemo(() => [...snake].reverse(), [snake]);
-
-  const longestWordData = useMemo(
-    () => findLongestValidWordAtEnd(reverseSnake, validWordSet),
-    [validWordSet, reverseSnake],
-  );
 
   useInterval(
     () => selectRandomLetter(),
@@ -204,25 +235,10 @@ const Game = () => {
           Snake: {JSON.stringify(reverseSnake.map(({ letter }) => letter))}
         </div>
       )}
-      <Grid longestWordCoordinates={longestWordData.coordinates} />
 
-      <div className="flex gap-4 justify-center items-center w-full my-4 flex-col">
-        <h3 className="text-xl font-extrabold">Longest word:</h3>
-        {longestWordData.word.length > 1 && (
-          <div className="flex gap-1 flex-wrap">
-            {longestWordData.word.split("").map((letter, index) => (
-              <div
-                key={`${letter}:${index}:max`}
-                className={
-                  "h-9 w-9 capitalize relative aspect-square flex justify-center items-center font-bold text-lg text-center bg-green-600"
-                }
-              >
-                {letter}
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+      <Grid />
+
+      <FoundWordsList validWordsData={foundWords} />
 
       <Dialog
         open={isTutorialOpen}
@@ -250,22 +266,22 @@ const Game = () => {
       <Dialog open={gameOver}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Game Over!</DialogTitle>
+            <DialogTitle>
+              Game Over! You scored {foundWords.totalScore}
+            </DialogTitle>
             <DialogDescription className="flex justify-center">
-              {longestWordData.word.length > 1 && (
-                <span className="flex gap-1 flex-wrap">
-                  {longestWordData.word.split("").map((letter) => (
-                    <span
-                      key={`${letter}:${letter}:final`}
-                      className={
-                        "h-9 w-9 capitalize text-slate-900 relative aspect-square flex justify-center items-center font-bold text-lg text-center bg-green-600"
-                      }
-                    >
-                      {letter}
-                    </span>
-                  ))}
+              {[
+                ...foundWords.words
+                  .sort((a, b) => b.score - a.score)
+                  .slice(0, 3),
+              ].map((wordObj, index) => (
+                <span key={index} className="p-1 block">
+                  <span className="font-medium">{wordObj.word}</span>
+                  <span className="text-sm text-gray-500 ml-2">
+                    ({wordObj.score})
+                  </span>
                 </span>
-              )}
+              ))}
             </DialogDescription>
             <Button
               onClick={() => {

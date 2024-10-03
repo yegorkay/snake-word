@@ -50,8 +50,8 @@ const directionsMap = {
   Right: { x: 1, y: 0 },
 } as const satisfies { [key: string]: CellType["coordinates"] };
 
-const FLASH_DURATION = 3000;
-const CHANGE_RANDOM_LETTER_DURATION = 1000;
+const FLASH_DURATION = 5000;
+const CHANGE_RANDOM_LETTER_DURATION = FLASH_DURATION;
 
 export const gameConfig = {
   ROW_COUNT,

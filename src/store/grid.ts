@@ -7,6 +7,8 @@ import { randomLetterPlacement } from "@/utils/random-letter-placement";
 import { getRandomWeightedLetter } from "@/utils/get-random-weighted-letter";
 import { getDirection } from "@/utils/get-direction";
 
+// TODO anytime a new letter flashes it sits in empty slot
+
 type GridState = {
   grid: CellType[][];
   snake: CellType[];
@@ -194,9 +196,6 @@ export const useGridStore = create<GridState & GridActions>()(
           };
 
           state.placeNewLetter(updatedGrid);
-          state.snakeSpeed = Math.round(
-            state.snakeSpeed - gameConfig.SNAKE_SPEED_IN_MS * (0.5 / 15),
-          );
         }
 
         const newSnake = [newHead];
