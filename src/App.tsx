@@ -16,6 +16,7 @@ import type { CellType } from "@/types";
 import { findAllValidWords } from "@/utils/find-all-valid-words";
 import { getDirection } from "@/utils/get-direction";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
+import { getTopLetters } from "./utils/get-top-letters";
 
 const cellTypeColorMap = {
   collision: "bg-red-600",
@@ -31,38 +32,6 @@ const arrowMap = {
   right: "[clip-path:polygon(0%_0%,60%_0%,100%_50%,60%_100%,0%_100%)]",
 } as {
   [key in ReturnType<typeof getDirection>]: string;
-};
-
-const FoundWordsList = ({
-  validWordsData,
-}: {
-  validWordsData: ReturnType<typeof findAllValidWords>;
-}) => {
-  const foundWords = validWordsData.words;
-
-  return (
-    <div className="w-full my-2 flex flex-col gap-2">
-      <h3 className="text-xl font-extrabold text-center">
-        Score: {validWordsData.totalScore}
-      </h3>
-
-      {foundWords.length > 0 && (
-        <ScrollArea className="whitespace-nowrap rounded-md border">
-          <ul className="flex w-max space-x-4 p-4">
-            {foundWords.map((wordObj, index) => (
-              <li key={index} className="p-1">
-                <span className="font-medium">{wordObj.word}</span>
-                <span className="text-sm text-gray-500 ml-2">
-                  ({wordObj.score})
-                </span>
-              </li>
-            ))}
-          </ul>
-          <ScrollBar orientation="horizontal" />
-        </ScrollArea>
-      )}
-    </div>
-  );
 };
 
 // A functional component that renders the grid
@@ -126,9 +95,10 @@ const Game = () => {
     moveSnake,
     selectRandomLetter,
     changeRandomLetter,
-    letters,
     setGameOver,
     setSnakeSpeed,
+    setTimeRemaining,
+    timeRemaining,
   } = useGridStore();
 
   const handlers = useSwipeable({
@@ -156,7 +126,7 @@ const Game = () => {
   }, [initializeGrid]);
 
   useEffect(() => {
-    setSnakeSpeed(gameConfig.SNAKE_SPEED_IN_MS + foundWords.words.length * 10);
+    setSnakeSpeed(gameConfig.SNAKE_SPEED_IN_MS - foundWords.words.length * 12);
   }, [setSnakeSpeed, foundWords]);
 
   // Update snake position on grid and handle movement
@@ -218,27 +188,58 @@ const Game = () => {
     gameOver ? null : snakeSpeed,
   );
 
+  useInterval(
+    () => {
+      if (timeRemaining === 0) {
+        toggleEnableMovement();
+      }
+      if (!enableMovement && timeRemaining > 0) {
+        setTimeRemaining(timeRemaining - 1000);
+      }
+    },
+    gameOver || timeRemaining === 0 ? null : 1000,
+  );
+
   return (
     <div
       {...handlers}
       className="p-4 flex flex-col items-start sm:items-center h-svh"
     >
-      {import.meta.env.DEV && (
-        <div className="sm:flex hidden flex-col items-center">
-          <h3>Letters history: {letters.map((l) => l.letter).join(", ")}</h3>
-          <button
-            className="border-2 border-slate-600 p-2 m-2"
-            onClick={() => toggleEnableMovement()}
-          >
-            Toggle Movement: {JSON.stringify(enableMovement)}
-          </button>
-          Snake: {JSON.stringify(reverseSnake.map(({ letter }) => letter))}
-        </div>
-      )}
+      {JSON.stringify(snakeSpeed)}
 
       <Grid />
 
-      <FoundWordsList validWordsData={foundWords} />
+      <div className="w-full my-2 flex flex-col gap-2">
+        <div className="flex flex-row items-center justify-center gap-6">
+          <h3 className="text-xl font-extrabold text-center">
+            Score: {foundWords.totalScore}
+          </h3>
+
+          <Button
+            onClick={() => toggleEnableMovement()}
+            disabled={timeRemaining === 0 || direction.direction === undefined}
+          >
+            {!enableMovement ? "Start Snake" : "Pause Snake"} (
+            {timeRemaining / 1000}s)
+          </Button>
+        </div>
+
+        {foundWords.words.length > 0 && (
+          <ScrollArea className="whitespace-nowrap rounded-md border">
+            <ul className="flex w-max space-x-4 p-4">
+              {foundWords.words.map((wordObj, index) => (
+                <li key={index} className="p-1">
+                  <span className="font-medium">{wordObj.word}</span>
+                  <span className="text-sm text-gray-500 ml-2">
+                    ({wordObj.score})
+                  </span>
+                </li>
+              ))}
+            </ul>
+            <ScrollBar orientation="horizontal" />
+          </ScrollArea>
+        )}
+      </div>
 
       <Dialog
         open={isTutorialOpen}
@@ -248,7 +249,9 @@ const Game = () => {
           <DialogHeader>
             <DialogTitle>Snakes & Letters - Tutorial</DialogTitle>
             <DialogDescription className="sm:hidden block">
-              Insert goal of the game text.
+              The goal of the game is to build as many words as you can with
+              your snake. You can pause the snake at any point, but time will
+              run out. The longer the words you build, the higher the score.
             </DialogDescription>
             <DialogDescription className="sm:hidden block">
               <strong>Mobile controls:</strong> Swipe anywhere on the screen in
@@ -269,20 +272,42 @@ const Game = () => {
             <DialogTitle>
               Game Over! You scored {foundWords.totalScore}
             </DialogTitle>
-            <DialogDescription className="flex justify-center">
+            <DialogDescription className="font-extrabold">
+              Top words:
+            </DialogDescription>
+            <DialogDescription className="flex justify-center mt-0">
               {[
                 ...foundWords.words
                   .sort((a, b) => b.score - a.score)
                   .slice(0, 3),
               ].map((wordObj, index) => (
                 <span key={index} className="p-1 block">
-                  <span className="font-medium">{wordObj.word}</span>
+                  <span className="font-bold">{wordObj.word}</span>
                   <span className="text-sm text-gray-500 ml-2">
                     ({wordObj.score})
                   </span>
                 </span>
               ))}
             </DialogDescription>
+
+            <DialogDescription className="font-extrabold">
+              Starting Letter:
+            </DialogDescription>
+            <DialogDescription className="flex justify-center mt-0">
+              {snake[0]?.letter}
+            </DialogDescription>
+
+            <DialogDescription className="font-extrabold">
+              Most used letters in snake:
+            </DialogDescription>
+            <DialogDescription className="flex justify-center mt-0 gap-4">
+              {getTopLetters(snake).map((letter, index) => (
+                <span className="block" key={`${letter}:${index}:most-used`}>
+                  {letter}
+                </span>
+              ))}
+            </DialogDescription>
+
             <Button
               onClick={() => {
                 initializeGrid();

@@ -53,6 +53,9 @@ const directionsMap = {
 const FLASH_DURATION = 5000;
 const CHANGE_RANDOM_LETTER_DURATION = FLASH_DURATION;
 
+// time remaining if the user pause the shake
+const TIME_REMAINING = 30_000;
+
 export const gameConfig = {
   ROW_COUNT,
   COLUMN_COUNT,
@@ -61,5 +64,6 @@ export const gameConfig = {
   letterWeights,
   directionsMap,
   FLASH_DURATION,
+  TIME_REMAINING,
   CHANGE_RANDOM_LETTER_DURATION,
 };

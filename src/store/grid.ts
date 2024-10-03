@@ -23,6 +23,7 @@ type GridState = {
   flashingLetter: CellType | null;
   flashStartTime: number | null;
   snakeSpeed: number;
+  timeRemaining: number;
 };
 
 type GridActions = {
@@ -43,6 +44,7 @@ type GridActions = {
   placeNewLetter: (updatedGrid: CellType[][]) => void;
   selectRandomLetter: () => void;
   changeRandomLetter: () => void;
+  setTimeRemaining: (time: GridState["timeRemaining"]) => void;
 };
 
 const checkCollision = (newHead: CellType, snake: CellType[]) => {
@@ -71,6 +73,15 @@ export const useGridStore = create<GridState & GridActions>()(
     snakeSpeed: gameConfig.SNAKE_SPEED_IN_MS as GridState["snakeSpeed"],
     gameOver: false as GridState["gameOver"],
     isTutorialOpen: true as GridState["isTutorialOpen"],
+
+    timeRemaining: gameConfig.TIME_REMAINING,
+
+    setTimeRemaining: (timeRemaining) => {
+      if (timeRemaining === 0) {
+        set({ enableMovement: true });
+      }
+      set({ timeRemaining });
+    },
 
     setGrid: (grid) => set({ grid }),
     setSnake: (snake) => set({ snake }),
