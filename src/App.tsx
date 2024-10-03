@@ -102,7 +102,11 @@ const Game = () => {
   } = useGridStore();
 
   const handlers = useSwipeable({
-    onSwiped: (eventData) => setDirection(eventData.dir),
+    onSwiped: (eventData) => {
+      if (enableMovement) {
+        setDirection(eventData.dir);
+      }
+    },
   });
 
   const { data: validWordSet } = useQuery({
