@@ -205,8 +205,6 @@ const Game = () => {
       {...handlers}
       className="p-4 flex flex-col items-start sm:items-center h-svh"
     >
-      {JSON.stringify(snakeSpeed)}
-
       <Grid />
 
       <div className="w-full my-2 flex flex-col gap-2">
