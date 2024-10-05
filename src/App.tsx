@@ -17,12 +17,21 @@ import { findAllValidWords } from "@/utils/find-all-valid-words";
 import { getDirection } from "@/utils/get-direction";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { getTopLetters } from "./utils/get-top-letters";
+import { isVowel } from "./utils/is-vowel";
+import { Play, Pause } from "lucide-react";
 
 const cellTypeColorMap = {
-  collision: "bg-red-600",
+  collision: "bg-red-500",
   empty: "bg-white",
-  letter: "bg-yellow-600",
-  snake: "bg-zinc-300",
+  letter: "bg-yellow-400",
+  snake: "bg-zinc-200",
+} as { [type in CellType["type"]]: string };
+
+const cellTypeTextColorMap = {
+  collision: "text-red-900",
+  empty: "text-white",
+  letter: "text-yellow-900",
+  snake: "text-slate-700",
 } as { [type in CellType["type"]]: string };
 
 const arrowMap = {
@@ -40,6 +49,7 @@ const Grid = () => {
 
   const directionClass = getDirection(direction.direction);
   const snakeHead = snake[0];
+  const snakeLength = snake.length - 1;
 
   return (
     <div
@@ -47,7 +57,7 @@ const Grid = () => {
         gridTemplateColumns: `repeat(${gameConfig.COLUMN_COUNT}, 1fr)`,
         gridTemplateRows: `repeat(${gameConfig.ROW_COUNT}, 1fr)`,
       }}
-      className="border-slate-400 border-2 grid gap-1 w-full max-w-sm p-1"
+      className="border-2 border-stone-300 rounded-lg grid gap-1 w-full max-w-sm p-1"
     >
       {grid.flat().map((cell, index) => {
         const rowIndex = Math.floor(index / gameConfig.COLUMN_COUNT);
@@ -56,16 +66,59 @@ const Grid = () => {
           rowIndex === snakeHead.coordinates.y &&
           colIndex === snakeHead.coordinates.x;
 
-        const cellClass = cellTypeColorMap[grid[rowIndex][colIndex].type];
+        const isSnakeCell = snake.some(
+          (segment) =>
+            segment.coordinates.y === rowIndex &&
+            segment.coordinates.x === colIndex,
+        );
+
+        const snakeSegmentIndex = snake.findIndex(
+          (segment) =>
+            segment.coordinates.y === rowIndex &&
+            segment.coordinates.x === colIndex,
+        );
+
+        const cellType = grid[rowIndex][colIndex].type;
+
+        const cellClass = isSnakeHead
+          ? "bg-zinc-700"
+          : isSnakeCell
+            ? cellTypeColorMap[cellType]
+            : cellType === "letter"
+              ? isVowel(cell?.letter)
+                ? "bg-purple-200"
+                : cellTypeColorMap[cellType]
+              : cellTypeColorMap[cellType];
+
+        const cellTextClass = isSnakeHead
+          ? "text-white"
+          : isSnakeCell
+            ? "text-slate-900"
+            : cellType === "letter"
+              ? isVowel(cell?.letter)
+                ? "text-purple-900"
+                : cellTypeTextColorMap[cellType]
+              : cellTypeTextColorMap[cellType];
+
+        const MAX_CELLS_TO_OPACITY = 7;
+
+        const opacity =
+          !isSnakeHead &&
+          snakeSegmentIndex > 0 &&
+          snakeLength > MAX_CELLS_TO_OPACITY
+            ? (snakeLength - snakeSegmentIndex) / snakeLength
+            : 1;
 
         return (
           <div
-            className={`${cellClass} rounded-lg relative aspect-square flex justify-center items-center font-bold text-lg text-center ${isSnakeHead ? arrowMap[directionClass] : ""}`.trim()}
+            className={`${cellClass} ${isSnakeHead ? "text-white" : ""} rounded-lg relative aspect-square flex justify-center items-center font-bold text-lg text-center ${isSnakeHead ? arrowMap[directionClass] : ""}`.trim()}
             key={index}
           >
             {/* A hack for the game state sometimes rendering a letter on empty tile */}
             {cell?.letter && cell?.type !== "empty" && (
-              <span>{cell.letter}</span>
+              <span className={cellTextClass} style={{ opacity }}>
+                {cell.letter}
+              </span>
             )}
           </div>
         );
@@ -168,6 +221,8 @@ const Game = () => {
 
   useInterval(
     () => {
+      if (import.meta.env.DEV) return;
+
       if (timeRemaining === 0) {
         toggleEnableMovement();
       }
@@ -181,41 +236,46 @@ const Game = () => {
   return (
     <div
       {...handlers}
-      className="p-4 flex flex-col items-start sm:items-center h-svh"
+      className="px-3 py-1 flex flex-col items-start sm:items-center h-svh"
     >
-      <Grid />
-
-      <div className="w-full my-2 flex flex-col gap-2">
-        <div className="flex flex-row items-center justify-center gap-6">
-          <h3 className="text-xl font-extrabold text-center">
-            Score: {foundWords.totalScore}
-          </h3>
-
-          <Button
-            onClick={() => toggleEnableMovement()}
-            disabled={timeRemaining === 0 || direction.direction === undefined}
-          >
-            {!enableMovement ? "Start Snake" : "Pause Snake"} (
-            {timeRemaining / 1000}s)
-          </Button>
-        </div>
-
-        {foundWords.words.length > 0 && (
-          <ScrollArea className="whitespace-nowrap rounded-md border">
-            <ul className="flex w-max space-x-4 p-4">
-              {foundWords.words.map((wordObj, index) => (
+      <div className="w-full my-2 flex flex-col gap-2 relative">
+        <ScrollArea className="whitespace-nowrap rounded-md border">
+          <ul className="flex w-max space-x-1 p-1">
+            {foundWords.words.length > 0 ? (
+              foundWords.words.map((wordObj, index) => (
                 <li key={index} className="p-1">
                   <span className="font-medium">{wordObj.word}</span>
                   <span className="text-sm text-gray-500 ml-2">
                     ({wordObj.score})
                   </span>
                 </li>
-              ))}
-            </ul>
-            <ScrollBar orientation="horizontal" />
-          </ScrollArea>
-        )}
+              ))
+            ) : (
+              <li className="p-1 font-semibold">Snakes & Letters</li>
+            )}
+          </ul>
+          <ScrollBar orientation="horizontal" />
+        </ScrollArea>
+        <div className="absolute right-[3px] top-[3px] flex gap-1 bg-white">
+          {foundWords.totalScore > 0 && (
+            <div className="flex font-extrabold text-green-800 items-center px-2 border rounded-md">
+              {foundWords.totalScore}
+            </div>
+          )}
+          <Button
+            onClick={() => toggleEnableMovement()}
+            disabled={
+              import.meta.env.DEV
+                ? false
+                : timeRemaining === 0 || direction.direction === undefined
+            }
+          >
+            {!enableMovement ? <Play size={18} /> : <Pause size={18} />}
+            {import.meta.env.DEV ? " (dev)" : ` (${timeRemaining / 1000}s)`}
+          </Button>
+        </div>
       </div>
+      <Grid />
 
       <Dialog
         open={isTutorialOpen}
