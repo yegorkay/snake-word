@@ -67,19 +67,15 @@ const Grid = () => {
           rowIndex === snakeHead.coordinates.y &&
           colIndex === snakeHead.coordinates.x;
 
-        const isSnakeCell = snake.some(
-          (segment) =>
-            segment.coordinates.y === rowIndex &&
-            segment.coordinates.x === colIndex,
-        );
+        const cellType = grid[rowIndex][colIndex].type;
+
+        const isSnakeCell = cellType === "snake";
 
         const snakeSegmentIndex = snake.findIndex(
           (segment) =>
             segment.coordinates.y === rowIndex &&
             segment.coordinates.x === colIndex,
         );
-
-        const cellType = grid[rowIndex][colIndex].type;
 
         const cellClass = isSnakeHead
           ? "bg-zinc-700"
@@ -101,12 +97,12 @@ const Grid = () => {
                 : cellTypeTextColorMap[cellType]
               : cellTypeTextColorMap[cellType];
 
-        // Apply opacity: higher for the first 5 cells, then gradually reduce for longer snakes
+        // Apply opacity: higher for the first 4 cells, then gradually reduce for longer snakes
         const opacity =
           !isSnakeHead && snakeSegmentIndex > 0
-            ? snakeSegmentIndex < 5
-              ? 1 // Full opacity for the first 5 cells
-              : Math.max(0.2, 1 - (snakeSegmentIndex - 4) / (snakeLength - 4)) // Gradual falloff after the 5th cell
+            ? snakeSegmentIndex < 4
+              ? 1 // Full opacity for the first 4 cells
+              : Math.max(0.1, 1 - (snakeSegmentIndex - 3) / (snakeLength - 3)) // Gradual falloff after the 3th cell
             : 1;
 
         return (
