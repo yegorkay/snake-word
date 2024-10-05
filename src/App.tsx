@@ -101,13 +101,12 @@ const Grid = () => {
                 : cellTypeTextColorMap[cellType]
               : cellTypeTextColorMap[cellType];
 
-        const MAX_CELLS_TO_OPACITY = 7;
-
+        // Apply opacity: higher for the first 5 cells, then gradually reduce for longer snakes
         const opacity =
-          !isSnakeHead &&
-          snakeSegmentIndex > 0 &&
-          snakeLength > MAX_CELLS_TO_OPACITY
-            ? 1 - Math.log(snakeSegmentIndex + 1) / Math.log(snakeLength + 1)
+          !isSnakeHead && snakeSegmentIndex > 0
+            ? snakeSegmentIndex < 5
+              ? 1 // Full opacity for the first 5 cells
+              : Math.max(0.2, 1 - (snakeSegmentIndex - 4) / (snakeLength - 4)) // Gradual falloff after the 5th cell
             : 1;
 
         return (
@@ -117,7 +116,10 @@ const Grid = () => {
           >
             {/* A hack for the game state sometimes rendering a letter on empty tile */}
             {cell?.letter && cell?.type !== "empty" && (
-              <span className={cellTextClass} style={{ opacity }}>
+              <span
+                className={cellTextClass}
+                style={opacity === 1 ? undefined : { opacity }}
+              >
                 {cell.letter}
               </span>
             )}
@@ -247,10 +249,10 @@ const Game = () => {
   return (
     <div
       {...handlers}
-      className="px-3 py-1 flex flex-col items-start sm:items-center h-svh"
+      className="px-3 py-1 flex flex-col items-center h-svh max-w-screen-md mx-auto"
     >
-      <div className="w-full my-2 flex flex-col gap-2 relative max-w-96">
-        <ScrollArea className="whitespace-nowrap rounded-md border">
+      <div className="my-2 flex gap-2 items-center justify-between w-full">
+        <ScrollArea className="whitespace-nowrap rounded-md border min-w-52">
           <ul className="flex w-max space-x-1 p-1">
             {foundWords.words.length > 0 ? (
               foundWords.words.map((wordObj, index) => (
@@ -267,7 +269,7 @@ const Game = () => {
           </ul>
           <ScrollBar orientation="horizontal" />
         </ScrollArea>
-        <div className="absolute right-[3px] top-[3px] flex gap-1 bg-white">
+        <div className="flex gap-2 bg-white">
           {foundWords.totalScore > 0 && (
             <div className="flex font-extrabold text-green-800 items-center px-2 border rounded-md">
               {foundWords.totalScore}
@@ -289,7 +291,7 @@ const Game = () => {
       <Grid />
 
       <Dialog
-        open={isTutorialOpen}
+        open={highScore > 0 ? false : isTutorialOpen}
         onOpenChange={() => setIsTutorialOpen(!isTutorialOpen)}
       >
         <DialogContent>
