@@ -19,6 +19,7 @@ import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { getTopLetters } from "./utils/get-top-letters";
 import { isVowel } from "./utils/is-vowel";
 import { Play, Pause } from "lucide-react";
+import { useScore } from "./store/score";
 
 const cellTypeColorMap = {
   collision: "bg-red-500",
@@ -106,7 +107,7 @@ const Grid = () => {
           !isSnakeHead &&
           snakeSegmentIndex > 0 &&
           snakeLength > MAX_CELLS_TO_OPACITY
-            ? (snakeLength - snakeSegmentIndex) / snakeLength
+            ? 1 - Math.log(snakeSegmentIndex + 1) / Math.log(snakeLength + 1)
             : 1;
 
         return (
@@ -145,6 +146,8 @@ const Game = () => {
     setTimeRemaining,
     timeRemaining,
   } = useGridStore();
+
+  const { highScore, setHighScoreData } = useScore();
 
   const handlers = useSwipeable({
     onSwiped: (eventData) => {
@@ -233,12 +236,20 @@ const Game = () => {
     gameOver || timeRemaining === 0 ? null : 1000,
   );
 
+  useEffect(() => {
+    if (gameOver) {
+      if (foundWords.totalScore > highScore) {
+        setHighScoreData({ highScore: foundWords.totalScore });
+      }
+    }
+  }, [gameOver, foundWords.totalScore, highScore, setHighScoreData]);
+
   return (
     <div
       {...handlers}
       className="px-3 py-1 flex flex-col items-start sm:items-center h-svh"
     >
-      <div className="w-full my-2 flex flex-col gap-2 relative">
+      <div className="w-full my-2 flex flex-col gap-2 relative max-w-96">
         <ScrollArea className="whitespace-nowrap rounded-md border">
           <ul className="flex w-max space-x-1 p-1">
             {foundWords.words.length > 0 ? (
@@ -284,7 +295,7 @@ const Game = () => {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Snakes & Letters - Tutorial</DialogTitle>
-            <DialogDescription className="sm:hidden block">
+            <DialogDescription>
               The goal of the game is to build as many words as you can with
               your snake. You can pause the snake at any point, but time will
               run out. The longer the words you build, the higher the score.
@@ -343,6 +354,17 @@ const Game = () => {
                 </span>
               ))}
             </DialogDescription>
+
+            {highScore > 0 && (
+              <>
+                <DialogDescription className="font-extrabold">
+                  All Time High Score:
+                </DialogDescription>
+                <DialogDescription className="flex justify-center mt-0">
+                  {Math.max(foundWords.totalScore, highScore)}
+                </DialogDescription>
+              </>
+            )}
 
             <Button
               onClick={() => {
