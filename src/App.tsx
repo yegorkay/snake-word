@@ -23,7 +23,7 @@ import { useScore } from "./store/score";
 
 const cellTypeColorMap = {
   collision: "bg-red-500",
-  empty: "bg-white",
+  empty: "bg-cyan-800",
   letter: "bg-yellow-400",
   snake: "bg-zinc-200",
 } as { [type in CellType["type"]]: string };
@@ -68,7 +68,7 @@ const Grid = () => {
         gridTemplateColumns: `repeat(${gameConfig.COLUMN_COUNT}, 1fr)`,
         gridTemplateRows: `repeat(${gameConfig.ROW_COUNT}, 1fr)`,
       }}
-      className="border-2 border-stone-300 rounded-lg grid gap-1 w-full max-w-sm p-1"
+      className="border-2 border-cyan-800 rounded-lg grid gap-1 w-full max-w-sm p-1"
     >
       {grid.flat().map((cell, index) => {
         const rowIndex = Math.floor(index / gameConfig.COLUMN_COUNT);
@@ -251,29 +251,31 @@ const Game = () => {
   return (
     <div
       {...handlers}
-      className="px-3 py-1 flex flex-col items-center h-svh max-w-screen-md mx-auto"
+      className="px-3 py-1 flex flex-col items-center h-svh max-w-screen-md mx-auto bg-cyan-700"
     >
       <div className="my-2 flex gap-2 items-center justify-between w-full">
-        <ScrollArea className="whitespace-nowrap rounded-md border min-w-52">
+        <ScrollArea className="whitespace-nowrap rounded-md border border-cyan-800 min-w-52">
           <ul className="flex w-max space-x-1 p-1">
             {foundWords.words.length > 0 ? (
               foundWords.words.map((wordObj, index) => (
                 <li key={index} className="p-1">
-                  <span className="font-medium">{wordObj.word}</span>
-                  <span className="text-sm text-gray-500 ml-2">
+                  <span className="font-semibold text-white">
+                    {wordObj.word}
+                  </span>
+                  <span className="text-sm text-white ml-2">
                     ({wordObj.score})
                   </span>
                 </li>
               ))
             ) : (
-              <li className="p-1 font-semibold">Snakes & Letters</li>
+              <li className="p-1 font-semibold text-white">Snakes & Letters</li>
             )}
           </ul>
           <ScrollBar orientation="horizontal" />
         </ScrollArea>
-        <div className="flex gap-2 bg-white">
+        <div className="flex gap-2 bg-cyan-700">
           {foundWords.totalScore > 0 && (
-            <div className="flex font-extrabold text-green-800 items-center px-2 border rounded-md">
+            <div className="flex font-extrabold text-green-800 items-center px-2 border rounded-md bg-white">
               {foundWords.totalScore}
             </div>
           )}
