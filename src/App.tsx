@@ -304,6 +304,24 @@ const Game = () => {
               your snake. You can pause the snake at any point, but time will
               run out. The longer the words you build, the higher the score.
             </DialogDescription>
+            <div className="flex align-center items-center gap-2 sm:justify-start justify-center">
+              <span className="font-semibold text-base">Vowels</span>
+              <span
+                className={
+                  "bg-purple-200 text-purple-900 h-9 w-9 rounded-lg relative aspect-square flex justify-center items-center font-bold text-lg text-center"
+                }
+              >
+                A
+              </span>
+              <span className="font-semibold text-base">Consonants</span>
+              <span
+                className={
+                  "bg-yellow-400 text-yellow-900 h-9 w-9 rounded-lg relative aspect-square flex justify-center items-center font-bold text-lg text-center"
+                }
+              >
+                B
+              </span>
+            </div>
             <DialogDescription className="sm:hidden block">
               <strong>Mobile controls:</strong> Swipe anywhere on the screen in
               the direction you want the snake to go! Swipe left to go left, and
