@@ -52,6 +52,16 @@ const Grid = () => {
   const snakeHead = snake[0];
   const snakeLength = snake.length - 1;
 
+  // perhaps a slightly faster lookup helps alleviate some slowness
+  const snakeMap = useMemo(() => {
+    const map = new Map<string, number>();
+    snake.forEach((cell, index) => {
+      map.set(`${cell.coordinates.x},${cell.coordinates.y}`, index);
+    });
+
+    return map;
+  }, [snake]);
+
   return (
     <div
       style={{
@@ -71,11 +81,7 @@ const Grid = () => {
 
         const isSnakeCell = cellType === "snake";
 
-        const snakeSegmentIndex = snake.findIndex(
-          (segment) =>
-            segment.coordinates.y === rowIndex &&
-            segment.coordinates.x === colIndex,
-        );
+        const snakeSegmentIndex = snakeMap.get(`${colIndex},${rowIndex}`) ?? 0;
 
         const cellClass = isSnakeHead
           ? "bg-zinc-700"
