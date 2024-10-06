@@ -52,13 +52,19 @@ const Grid = () => {
   const snakeHead = snake[0];
   const snakeLength = snake.length - 1;
 
-  // perhaps a slightly faster lookup helps alleviate some slowness
+  // Calculate the center of the grid
+  const centerX = Math.floor(gameConfig.COLUMN_COUNT / 2);
+  const centerY = Math.floor(gameConfig.ROW_COUNT / 2);
+
+  // Calculate the maximum distance from the center to a corner
+  const maxDistance = Math.sqrt(centerX * centerX + centerY * centerY);
+
+  // Memoize the snake map for performance
   const snakeMap = useMemo(() => {
     const map = new Map<string, number>();
     snake.forEach((cell, index) => {
       map.set(`${cell.coordinates.x},${cell.coordinates.y}`, index);
     });
-
     return map;
   }, [snake]);
 
@@ -83,6 +89,17 @@ const Grid = () => {
 
         const snakeSegmentIndex = snakeMap.get(`${colIndex},${rowIndex}`) ?? 0;
 
+        // Calculate the distance from the center for empty cells
+        const distanceFromCenter = Math.sqrt(
+          Math.pow(colIndex - centerX, 2) + Math.pow(rowIndex - centerY, 2),
+        );
+
+        // Calculate opacity for empty cells (1 at the edges, 0.3 at the center)
+        const emptyOpacity =
+          cellType === "empty"
+            ? 0.1 + (0.6 * distanceFromCenter) / maxDistance
+            : 1;
+
         const cellClass = isSnakeHead
           ? "bg-zinc-700"
           : isSnakeCell
@@ -104,26 +121,25 @@ const Grid = () => {
               : cellTypeTextColorMap[cellType];
 
         // Apply opacity: higher for the first 4 cells, then gradually reduce for longer snakes
-        const opacity =
+        const snakeOpacity =
           !isSnakeHead && snakeSegmentIndex > 0
             ? snakeSegmentIndex < 4
               ? 1 // Full opacity for the first 4 cells
               : Math.max(0.1, 1 - (snakeSegmentIndex - 3) / (snakeLength - 3)) // Gradual falloff after the 3th cell
             : 1;
 
+        // Use emptyOpacity for empty cells, snakeOpacity for snake cells
+        const finalOpacity = cellType === "empty" ? emptyOpacity : snakeOpacity;
+
         return (
           <div
             className={`${cellClass} ${isSnakeHead ? "text-white" : ""} rounded-lg relative aspect-square flex justify-center items-center font-bold text-lg text-center ${isSnakeHead ? arrowMap[directionClass] : ""}`.trim()}
             key={index}
+            style={{ opacity: finalOpacity }}
           >
             {/* A hack for the game state sometimes rendering a letter on empty tile */}
             {cell?.letter && cell?.type !== "empty" && (
-              <span
-                className={cellTextClass}
-                style={opacity === 1 ? undefined : { opacity }}
-              >
-                {cell.letter}
-              </span>
+              <span className={cellTextClass}>{cell.letter}</span>
             )}
           </div>
         );
@@ -251,7 +267,7 @@ const Game = () => {
   return (
     <div
       {...handlers}
-      className="px-3 py-1 flex flex-col items-center h-svh max-w-screen-md mx-auto bg-cyan-700"
+      className="px-3 py-1 flex flex-col items-center h-svh max-w-screen-md mx-auto"
     >
       <div className="my-2 flex gap-2 items-center justify-between w-full">
         <ScrollArea className="whitespace-nowrap rounded-md border border-cyan-800 min-w-52">
